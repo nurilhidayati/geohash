@@ -9,14 +9,13 @@ import geopandas as gpd
 st.set_page_config(page_title="GeoJSON to Geohash6", layout="wide")
 st.title("Area to Geohash6 Converter")
 
-# Input filename (wajib)
+# Required input: filename
 custom_filename = st.text_input("📄 Please enter a filename for download (required)")
 filename_ready = bool(custom_filename.strip())
 
 # Upload file
 uploaded_file = st.file_uploader("📂 Upload a GeoJSON file", type=["geojson", "json"])
 
-# Fungsi untuk mengonversi geojson ke geohash
 def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
     if 'features' in geojson_data:
         geometries = [shape(feature['geometry']) for feature in geojson_data['features']]
@@ -41,7 +40,6 @@ def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
                 geohashes.add(gh)
     return geohashes
 
-# Fungsi untuk mengubah geohash jadi GeoJSON
 def geohash6_to_geojson(geohashes):
     features = []
     for gh in geohashes:
@@ -71,24 +69,21 @@ def geohash6_to_geojson(geohashes):
     }
     return geojson_output
 
-# Jalankan hanya jika file dan nama file sudah siap
+# Main logic only runs if both file and filename are provided
 if uploaded_file and filename_ready:
     try:
-        # Proses hanya dilakukan sekali saat file dan nama file valid
-        geojson_data = json.load(uploaded_file)
-
         with st.spinner("⏳ Processing... Please wait."):
+            geojson_data = json.load(uploaded_file)
             geohashes = geojson_to_geohash6(geojson_data)
             geojson_result = geohash6_to_geojson(geohashes)
             geojson_str = json.dumps(geojson_result)
 
-        # Setelah selesai proses, tampilkan tombol download tanpa spinner
-        st.download_button(
-            label="📥 Download data GeoJSON",
-            data=geojson_str,
-            file_name=f"{custom_filename.strip()}.geojson",
-            mime="application/geo+json"
-        )
+            st.download_button(
+                label="📥 Download data GeoJSON",
+                data=geojson_str,
+                file_name=f"{custom_filename.strip()}.geojson",
+                mime="application/geo+json"
+            )
 
     except Exception as e:
         st.error(f"❌ Error processing file: {e}")
