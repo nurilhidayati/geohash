@@ -9,11 +9,11 @@ import geopandas as gpd
 st.set_page_config(page_title="GeoJSON to Geohash6", layout="wide")
 st.title("Area to Geohash6 Converter")
 
-uploaded_file = st.file_uploader("📂 Upload a GeoJSON file", type=["geojson", "json"])
+uploaded_file = st.file_uploader("📂 Upload an area in GeoJSON format", type=["geojson", "json"])
 
 # Input filename before uploading
 # Required input: filename
-custom_filename = st.text_input("📄 Please write a filename for download and press Enter (required)")
+custom_filename = st.text_input("📄 Please write a filename for download and press Enter!")
 filename_ready = bool(custom_filename.strip())
 
 def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
