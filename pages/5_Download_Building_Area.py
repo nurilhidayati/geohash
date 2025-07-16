@@ -1,13 +1,12 @@
 import streamlit as st
 import requests
 import json
-import tempfile
 import osm2geojson
 
-
-def search_buildings(area_name):
+@st.cache_data(ttl=3600)
+def fetch_all_buildings(area_name):
     """
-    Search buildings by name in a given area using Overpass API.
+    Fetch all building data (not filtered yet) from Overpass.
     """
     query = f"""
     [out:json][timeout:60];
@@ -41,25 +40,34 @@ def search_buildings(area_name):
             })
     return results
 
+# ============ Streamlit UI ==============
+st.set_page_config(page_title="OSM Building Finder", layout="wide")
+st.title("🏢 Search Buildings by Partial Name in OpenStreetMap")
 
-# ============ STREAMLIT UI ==============
+col1, col2 = st.columns(2)
+with col1:
+    area_name = st.text_input("Enter area (e.g., Jakarta, Tangerang):", value="Jakarta")
+with col2:
+    name_query = st.text_input("Search building name (e.g., PIK):")
 
-st.set_page_config(page_title="OSM Building Search", layout="wide")
-st.title("🏢 Search Named Buildings in OSM")
-
-area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
-
-if st.button("🔍 Search Buildings"):
+if st.button("🔍 Search"):
     if not area_name.strip():
-        st.warning("⚠️ Please enter a valid area name.")
+        st.warning("⚠️ Area name required.")
     else:
-        with st.spinner("⏳ Searching building names... Please wait."):
+        with st.spinner("⏳ Fetching and filtering buildings..."):
             try:
-                results = search_buildings(area_name)
-                if results:
-                    st.success(f"✅ Found {len(results)} named buildings in {area_name}")
-                    st.dataframe(results, use_container_width=True)
+                buildings = fetch_all_buildings(area_name)
+
+                # Filter locally using partial match (case-insensitive)
+                if name_query.strip():
+                    buildings = [
+                        b for b in buildings if name_query.lower() in b["name"].lower()
+                    ]
+
+                if buildings:
+                    st.success(f"✅ Found {len(buildings)} building(s) matching your search.")
+                    st.dataframe(buildings, use_container_width=True)
                 else:
-                    st.warning(f"No named buildings found in '{area_name}'.")
+                    st.warning("No buildings matched your search.")
             except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
+                st.error(str(e))
