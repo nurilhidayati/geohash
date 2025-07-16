@@ -3,8 +3,8 @@ import streamlit as st
 st.set_page_config(
     page_title="GeoHash Toolbox",
     page_icon="🌍",
-    layout="wide",  # optional
-    initial_sidebar_state="expanded"  # ✅ Biar sidebar langsung terbuka
+    layout="wide",
+    initial_sidebar_state="expanded"  # Pastikan sidebar terbuka
 )
 
 st.title("🌍 GeoHash Toolbox")
@@ -18,3 +18,5 @@ Gunakan sidebar di kiri untuk mengakses fitur:
 
 Website ini membantu kamu dalam mengolah data spasial dengan format geohash secara praktis.
 """)
+
+# ❌ Jangan tambahkan CSS untuk menyembunyikan sidebar di sini
