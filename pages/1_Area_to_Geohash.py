@@ -77,7 +77,7 @@ if uploaded_file:
             geojson_str = json.dumps(geojson_result)
 
             st.download_button(
-                label="📥 Download GeoJSON with Geohash6 Cells",
+                label="📥 Download data GeoJSON",
                 data=geojson_str,
                 file_name=f"{custom_filename}.geojson",
                 mime="application/geo+json"
