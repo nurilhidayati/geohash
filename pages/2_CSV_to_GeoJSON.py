@@ -22,7 +22,7 @@ def geohash_to_polygon(gh):
         (lon_min, lat_min)
     ])
 
-st.title("Geohash CSV to GeoJSON Converter")
+st.title("CSV to GeoJSON Converter")
 st.markdown("Upload one or more CSV files containing a `geoHash` column. Each file will be converted to a GeoJSON with polygons.")
 
 uploaded_files = st.file_uploader("Upload CSV files", type="csv", accept_multiple_files=True)
