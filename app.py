@@ -11,7 +11,7 @@ st.markdown("""
 Selamat datang di **GeoHash Toolbox**!
 
 Gunakan menu di sidebar kiri:
-- 🔄 Geohash ke GeoJSON
-- ➡️ GeoJSON ke Geohash
-- 🗺️ Viewer Peta
+- 🔄 Area to GeoHash6
+- ➡️ CSV to GeoJSON
+- 🗺️ GeoJSON to CSv
 """)
