@@ -72,6 +72,7 @@ def geohash6_to_geojson(geohashes):
 
 if uploaded_file:
     try:
+        with st.spinner("⏳ Processing... Please wait.")
         geojson_data = json.load(uploaded_file)
 
         geohashes = geojson_to_geohash6(geojson_data)
@@ -84,32 +85,6 @@ if uploaded_file:
             file_name=f"{custom_filename}.geojson",
             mime="application/geo+json"
         )
-
-        # Optional: show result using pydeck
-        gdf = gpd.GeoDataFrame.from_features(geojson_result["features"])
-        gdf["coordinates"] = gdf["geometry"].apply(lambda geom: list(geom.exterior.coords))
-
-        polygon_layer = pdk.Layer(
-            "PolygonLayer",
-            gdf,
-            get_polygon="coordinates",
-            get_fill_color="[200, 30, 0, 80]",
-            pickable=True,
-            auto_highlight=True,
-        )
-
-        view_state = pdk.ViewState(
-            longitude=gdf.geometry.centroid.x.mean(),
-            latitude=gdf.geometry.centroid.y.mean(),
-            zoom=10,
-            pitch=0,
-        )
-
-        st.pydeck_chart(pdk.Deck(
-            map_style="mapbox://styles/mapbox/light-v9",
-            layers=[polygon_layer],
-            initial_view_state=view_state,
-        ))
 
     except Exception as e:
         st.error(f"❌ Error processing file: {e}")
