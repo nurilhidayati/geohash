@@ -76,10 +76,15 @@ if uploaded_file:
         geojson_result = geohash6_to_geojson(geohashes)
         geojson_str = json.dumps(geojson_result)
 
+        # User input for filename
+        custom_filename = st.text_input("📄 Enter filename for download (no extension)", value="geohash6_cells")
+        if not custom_filename.strip():
+            custom_filename = "geohash6_cells"
+
         st.download_button(
             label="📥 Download GeoJSON with Geohash6 Cells",
             data=geojson_str,
-            file_name="geohash6_cells.geojson",
+            file_name=f"{custom_filename}.geojson",
             mime="application/geo+json"
         )
 
