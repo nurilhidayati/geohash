@@ -18,16 +18,3 @@ Gunakan sidebar di kiri untuk mengakses fitur:
 
 Website ini membantu kamu dalam mengolah data spasial dengan format geohash secara praktis.
 """)
-
-# ❌ Hapus ini jika ingin sidebar tetap muncul
-# hide_sidebar = """
-#     <style>
-#         [data-testid="stSidebarNav"] {
-#             display: none;
-#         }
-#         [data-testid="stSidebar"] {
-#             display: none;
-#         }
-#     </style>
-# """
-# st.markdown(hide_sidebar, unsafe_allow_html=True)
