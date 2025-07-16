@@ -10,7 +10,12 @@ import pydeck as pdk
 st.set_page_config(page_title="GeoJSON to Geohash6", layout="wide")
 st.title("🧭 GeoJSON to Geohash6 Converter")
 
-uploaded_file = st.file_uploader("Upload a GeoJSON file", type=["geojson", "json"])
+# Input filename before uploading
+custom_filename = st.text_input("📄 Enter filename for download (no extension)", value="geohash6_cells")
+if not custom_filename.strip():
+    custom_filename = "geohash6_cells"
+
+uploaded_file = st.file_uploader("📂 Upload a GeoJSON file", type=["geojson", "json"])
 
 def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
     if 'features' in geojson_data:
@@ -68,18 +73,10 @@ def geohash6_to_geojson(geohashes):
 if uploaded_file:
     try:
         geojson_data = json.load(uploaded_file)
-        st.success("✅ File successfully uploaded and parsed.")
 
         geohashes = geojson_to_geohash6(geojson_data)
-        st.write(f"✅ Found **{len(geohashes)}** geohash6 cells")
-
         geojson_result = geohash6_to_geojson(geohashes)
         geojson_str = json.dumps(geojson_result)
-
-        # User input for filename
-        custom_filename = st.text_input("📄 Enter filename for download (no extension)", value="geohash6_cells")
-        if not custom_filename.strip():
-            custom_filename = "geohash6_cells"
 
         st.download_button(
             label="📥 Download GeoJSON with Geohash6 Cells",
