@@ -1,6 +1,7 @@
 import streamlit as st
 
-st.set_page_config(page_title="GeoHash Toolbox", page_icon="🌍")
+
+st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
 
 st.title("🌍 GeoHash Toolbox")
 st.markdown("""
