@@ -12,9 +12,7 @@ st.title("Area to Geohash6 Converter")
 
 uploaded_file = st.file_uploader("📂 Upload a GeoJSON file", type=["geojson", "json"])
 # Input filename before uploading
-custom_filename = st.text_input("📄 Please write your filename for download", value="geohash6_cells")
-if not custom_filename.strip():
-    custom_filename = "geohash6_cells"
+custom_filename = st.text_input("📄 Please write your filename for download")
 
 def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
     if 'features' in geojson_data:
