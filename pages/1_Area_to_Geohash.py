@@ -5,7 +5,6 @@ import numpy as np
 from shapely.geometry import shape, box, GeometryCollection, Polygon
 from shapely.validation import make_valid
 import geopandas as gpd
-import pydeck as pdk
 
 st.set_page_config(page_title="GeoJSON to Geohash6", layout="wide")
 st.title("🧭 GeoJSON to Geohash6 Converter")
@@ -72,19 +71,19 @@ def geohash6_to_geojson(geohashes):
 
 if uploaded_file:
     try:
-        with st.spinner("⏳ Processing... Please wait.")
-        geojson_data = json.load(uploaded_file)
+        with st.spinner("⏳ Processing... Please wait."):
+            geojson_data = json.load(uploaded_file)
 
-        geohashes = geojson_to_geohash6(geojson_data)
-        geojson_result = geohash6_to_geojson(geohashes)
-        geojson_str = json.dumps(geojson_result)
+            geohashes = geojson_to_geohash6(geojson_data)
+            geojson_result = geohash6_to_geojson(geohashes)
+            geojson_str = json.dumps(geojson_result)
 
-        st.download_button(
-            label="📥 Download GeoJSON with Geohash6 Cells",
-            data=geojson_str,
-            file_name=f"{custom_filename}.geojson",
-            mime="application/geo+json"
-        )
+            st.download_button(
+                label="📥 Download GeoJSON with Geohash6 Cells",
+                data=geojson_str,
+                file_name=f"{custom_filename}.geojson",
+                mime="application/geo+json"
+            )
 
     except Exception as e:
         st.error(f"❌ Error processing file: {e}")
