@@ -1,19 +1,17 @@
 import streamlit as st
 import requests
 import json
-import osm2geojson
 
-@st.cache_data(ttl=3600)
-def fetch_all_buildings(area_name):
+def search_buildings(area_name, keyword):
     """
-    Fetch all building data (not filtered yet) from Overpass.
+    Search named buildings in a given area using Overpass API and filter by keyword.
     """
     query = f"""
     [out:json][timeout:60];
     area["name"="{area_name}"]->.searchArea;
     (
-      way["building"](area.searchArea);
-      relation["building"](area.searchArea);
+      way["building"]["name"](area.searchArea);
+      relation["building"]["name"](area.searchArea);
     );
     out tags center;
     """
@@ -26,12 +24,13 @@ def fetch_all_buildings(area_name):
     if 'elements' not in data or len(data['elements']) == 0:
         return []
 
+    keyword_lower = keyword.lower()
     results = []
     for el in data['elements']:
         tags = el.get("tags", {})
         name = tags.get("name")
         btype = tags.get("building")
-        if name:
+        if name and keyword_lower in name.lower():
             results.append({
                 "name": name,
                 "type": btype or "unknown",
@@ -40,34 +39,29 @@ def fetch_all_buildings(area_name):
             })
     return results
 
-# ============ Streamlit UI ==============
-st.set_page_config(page_title="OSM Building Finder", layout="wide")
-st.title("🏢 Search Buildings by Partial Name in OpenStreetMap")
+
+# ============ STREAMLIT UI ==============
+
+st.set_page_config(page_title="OSM Building Search", layout="wide")
+st.title("🏢 Search Named Buildings in OSM")
 
 col1, col2 = st.columns(2)
 with col1:
-    area_name = st.text_input("Enter area (e.g., Jakarta, Tangerang):", value="Jakarta")
+    area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta)")
 with col2:
-    name_query = st.text_input("Search building name (e.g., PIK):")
+    keyword = st.text_input("Search building name (e.g., PIK)")
 
-if st.button("🔍 Search"):
-    if not area_name.strip():
-        st.warning("⚠️ Area name required.")
+if st.button("🔍 Search Buildings"):
+    if not area_name.strip() or not keyword.strip():
+        st.warning("⚠️ Please fill in both area and building name keyword.")
     else:
-        with st.spinner("⏳ Fetching and filtering buildings..."):
+        with st.spinner("⏳ Searching building names... Please wait."):
             try:
-                buildings = fetch_all_buildings(area_name)
-
-                # Filter locally using partial match (case-insensitive)
-                if name_query.strip():
-                    buildings = [
-                        b for b in buildings if name_query.lower() in b["name"].lower()
-                    ]
-
-                if buildings:
-                    st.success(f"✅ Found {len(buildings)} building(s) matching your search.")
-                    st.dataframe(buildings, use_container_width=True)
+                results = search_buildings(area_name, keyword)
+                if results:
+                    st.success(f"✅ Found {len(results)} buildings with keyword '{keyword}' in {area_name}")
+                    st.dataframe(results, use_container_width=True)
                 else:
-                    st.warning("No buildings matched your search.")
+                    st.warning(f"No buildings with name like '{keyword}' found in '{area_name}'.")
             except Exception as e:
-                st.error(str(e))
+                st.error(f"❌ Error: {str(e)}")
