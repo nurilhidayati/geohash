@@ -25,7 +25,8 @@ def geohash_to_polygon(gh):
 st.title("CSV to GeoJSON Converter")
 st.markdown("Upload one or more CSV files containing a `geoHash` column. Each file will be converted to a GeoJSON with polygons.")
 
-uploaded_files = st.file_uploader("Upload CSV files", type="csv", accept_multiple_files=True)
+st.markdown("![CSV Icon](https://img.icons8.com/color/48/000000/csv.png)")
+uploaded_files = st.file_uploader("Upload CSV file", type=["csv"], accept_multiple_files=True)
 
 if uploaded_files:
     output_dir = tempfile.mkdtemp()
