@@ -6,11 +6,11 @@ import osm2geojson
 
 def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     """
-    Downloads the administrative boundary of a given area as a GeoJSON file using Overpass API.
+    Downloads administrative boundary polygons only as GeoJSON using Overpass API.
     """
     overpass_url = "https://overpass-api.de/api/interpreter"
     query = f"""
-    [out:json];
+    [out:json][timeout:25];
     area["name"="{area_name}"]->.searchArea;
     (
       relation["boundary"="administrative"](area.searchArea);
@@ -28,12 +28,25 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     if 'elements' not in data or len(data['elements']) == 0:
         raise ValueError(f"No boundary data found for '{area_name}'.")
 
-    geojson_data = osm2geojson.json2geojson(data)
+    # Convert to GeoJSON
+    geojson = osm2geojson.json2geojson(data)
+
+    # Filter to only Polygon or MultiPolygon features
+    features = [feat for feat in geojson['features']
+                if feat['geometry']['type'] in ['Polygon', 'MultiPolygon']]
+
+    if not features:
+        raise ValueError(f"No polygon boundaries found for '{area_name}'.")
+
+    geojson_filtered = {
+        "type": "FeatureCollection",
+        "features": features
+    }
 
     with open(save_as, 'w', encoding='utf-8') as f:
-        json.dump(geojson_data, f, ensure_ascii=False, indent=2)
+        json.dump(geojson_filtered, f, ensure_ascii=False, indent=2)
 
-    return geojson_data, save_as
+    return geojson_filtered, save_as
 
 
 # --- Streamlit UI ---
@@ -48,16 +61,16 @@ if st.button("Download Boundary"):
     else:
         with st.spinner("⏳ Processing... Please wait."):
             try:
-                # Fallback if no filename is provided
                 final_filename = custom_filename.strip() or f"{area_name.replace(' ', '_')}_boundary.geojson"
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmpfile:
                     geojson_data, filepath = download_boundary_geojson(area_name, save_as=tmpfile.name)
 
                     with open(filepath, 'rb') as f:
+                        st.success("✅ Boundary ready. Click below to download:")
                         st.download_button(
-                            "⬇️ Download GeoJSON",
-                            f,
+                            label="⬇️ Download GeoJSON",
+                            data=f,
                             file_name=final_filename,
                             mime="application/geo+json"
                         )
