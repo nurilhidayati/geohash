@@ -9,13 +9,14 @@ import geopandas as gpd
 st.set_page_config(page_title="GeoJSON to Geohash6", layout="wide")
 st.title("Area to Geohash6 Converter")
 
-# Required input: filename
-custom_filename = st.text_input("📄 Please wite a filename for download (required)")
+# Input filename (wajib)
+custom_filename = st.text_input("📄 Please enter a filename for download (required)")
 filename_ready = bool(custom_filename.strip())
 
 # Upload file
 uploaded_file = st.file_uploader("📂 Upload a GeoJSON file", type=["geojson", "json"])
 
+# Fungsi untuk mengonversi geojson ke geohash
 def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
     if 'features' in geojson_data:
         geometries = [shape(feature['geometry']) for feature in geojson_data['features']]
@@ -40,6 +41,7 @@ def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
                 geohashes.add(gh)
     return geohashes
 
+# Fungsi untuk mengubah geohash jadi GeoJSON
 def geohash6_to_geojson(geohashes):
     features = []
     for gh in geohashes:
@@ -69,18 +71,18 @@ def geohash6_to_geojson(geohashes):
     }
     return geojson_output
 
-# Main logic only runs if both file and filename are provided
+# Jalankan hanya jika file dan nama file sudah siap
 if uploaded_file and filename_ready:
     try:
+        # Proses hanya dilakukan sekali saat file dan nama file valid
         geojson_data = json.load(uploaded_file)
 
-        # Only show spinner during processing
-        with st.spinner("⏳ Converting GeoJSON to Geohash6..."):
+        with st.spinner("⏳ Processing... Please wait."):
             geohashes = geojson_to_geohash6(geojson_data)
             geojson_result = geohash6_to_geojson(geohashes)
             geojson_str = json.dumps(geojson_result)
 
-        # Spinner already done — only show download now
+        # Setelah selesai proses, tampilkan tombol download tanpa spinner
         st.download_button(
             label="📥 Download data GeoJSON",
             data=geojson_str,
