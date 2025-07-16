@@ -1,3 +1,4 @@
+import streamlit as st
 import requests
 import json
 
@@ -45,18 +46,20 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     if response.status_code != 200:
         raise ConnectionError("Failed to fetch boundary data.")
 
-    # Convert OSM JSON to GeoJSON using osmtogeojson (optional)
-    from osmtogeojson import osmtogeojson
-    geojson_data = osmtogeojson.json2geojson(response.json())
+    # Convert OSM JSON to GeoJSON using osmtogeojson
+    from osmtogeojson import json2geojson
+    geojson_data = json2geojson(response.json())
 
     with open(save_as, 'w', encoding='utf-8') as f:
         json.dump(geojson_data, f, ensure_ascii=False, indent=2)
 
     return geojson_data, save_as
 
+# --- Streamlit App ---
 st.header("🌍 Download Area Boundary as GeoJSON")
 
 area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
+
 if st.button("Download Boundary"):
     try:
         geojson_data, filepath = download_boundary_geojson(area_name)
