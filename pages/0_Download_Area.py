@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+from osmtogeojson import osmtogeojson  # ✅ correct function
 
 def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     """
@@ -15,7 +16,6 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     - dict: GeoJSON content as a dictionary.
     - str: Saved file path.
     """
-    # Overpass QL query to get the relation ID
     query = f"""
     [out:json];
     area["name"="{area_name}"]->.searchArea;
@@ -32,8 +32,6 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
         raise ValueError(f"Area '{area_name}' not found in OSM.")
 
     relation_id = data['elements'][0]['id']
-    overpass_url = "https://overpass-api.de/api/interpreter"
-
     geojson_query = f"""
     [out:json][timeout:25];
     relation({relation_id});
@@ -42,13 +40,11 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     out skel qt;
     """
 
-    response = requests.get(overpass_url, params={'data': geojson_query})
+    response = requests.get("https://overpass-api.de/api/interpreter", params={'data': geojson_query})
     if response.status_code != 200:
         raise ConnectionError("Failed to fetch boundary data.")
 
-    # Convert OSM JSON to GeoJSON using osmtogeojson
-    from osmtogeojson import json2geojson
-    geojson_data = json2geojson(response.json())
+    geojson_data = osmtogeojson(response.json())  # ✅ Use the correct function
 
     with open(save_as, 'w', encoding='utf-8') as f:
         json.dump(geojson_data, f, ensure_ascii=False, indent=2)
