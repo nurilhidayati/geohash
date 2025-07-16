@@ -4,14 +4,12 @@ import geohash2
 import numpy as np
 from shapely.geometry import shape, box, GeometryCollection, Polygon
 from shapely.validation import make_valid
-from io import StringIO
 import geopandas as gpd
+import pydeck as pdk
 
 st.set_page_config(page_title="GeoJSON to Geohash6", layout="wide")
-
 st.title("🧭 GeoJSON to Geohash6 Converter")
 
-# Upload file
 uploaded_file = st.file_uploader("Upload a GeoJSON file", type=["geojson", "json"])
 
 def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
@@ -78,7 +76,6 @@ if uploaded_file:
         geojson_result = geohash6_to_geojson(geohashes)
         geojson_str = json.dumps(geojson_result)
 
-        # Download button
         st.download_button(
             label="📥 Download GeoJSON with Geohash6 Cells",
             data=geojson_str,
@@ -86,9 +83,31 @@ if uploaded_file:
             mime="application/geo+json"
         )
 
-        # Optional: Show result preview
+        # Optional: show result using pydeck
         gdf = gpd.GeoDataFrame.from_features(geojson_result["features"])
-        st.map(gdf)
+        gdf["coordinates"] = gdf["geometry"].apply(lambda geom: list(geom.exterior.coords))
+
+        polygon_layer = pdk.Layer(
+            "PolygonLayer",
+            gdf,
+            get_polygon="coordinates",
+            get_fill_color="[200, 30, 0, 80]",
+            pickable=True,
+            auto_highlight=True,
+        )
+
+        view_state = pdk.ViewState(
+            longitude=gdf.geometry.centroid.x.mean(),
+            latitude=gdf.geometry.centroid.y.mean(),
+            zoom=10,
+            pitch=0,
+        )
+
+        st.pydeck_chart(pdk.Deck(
+            map_style="mapbox://styles/mapbox/light-v9",
+            layers=[polygon_layer],
+            initial_view_state=view_state,
+        ))
 
     except Exception as e:
         st.error(f"❌ Error processing file: {e}")
