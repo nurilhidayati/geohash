@@ -53,8 +53,19 @@ if uploaded_files:
         except Exception as e:
             st.error(f"Error processing `{file.name}`: {e}")
 
-    if geojson_paths:
-        # Create ZIP file
+    if len(geojson_paths) == 1:
+        # Single file: Download directly
+        geojson_path = geojson_paths[0]
+        with open(geojson_path, "rb") as f:
+            st.download_button(
+                label="⬇️ Download GeoJSON",
+                data=f,
+                file_name=os.path.basename(geojson_path),
+                mime="application/geo+json"
+            )
+
+    elif len(geojson_paths) > 1:
+        # Multiple files: Zip and download
         zip_path = os.path.join(output_dir, "converted_geojsons.zip")
         with zipfile.ZipFile(zip_path, 'w') as zipf:
             for geojson_file in geojson_paths:
