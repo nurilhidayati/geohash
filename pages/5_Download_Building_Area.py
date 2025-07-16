@@ -42,48 +42,24 @@ def search_buildings(area_name):
     return results
 
 
-def download_building_geojson(area_name, save_as='buildings.geojson'):
-    """
-    Downloads building polygons from OpenStreetMap for a given area using Overpass API.
-    """
-    overpass_url = "https://overpass-api.de/api/interpreter"
-    query = f"""
-    [out:json][timeout:60];
-    area["name"="{area_name}"]->.searchArea;
-    (
-      way["building"](area.searchArea);
-      relation["building"](area.searchArea);
-    );
-    out body;
-    >;
-    out skel qt;
-    """
+# ============ STREAMLIT UI ==============
 
-    response = requests.get(overpass_url, params={'data': query})
-    if response.status_code != 200:
-        raise Exception("Failed to query Overpass API.")
+st.set_page_config(page_title="OSM Building Search", layout="wide")
+st.title("🏢 Search Named Buildings in OSM")
 
-    data = response.json()
-    if 'elements' not in data or len(data['elements']) == 0:
-        raise ValueError(f"No building data found for '{area_name}'.")
+area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
 
-    geojson = osm2geojson.json2geojson(data)
-
-    # Filter only Polygon/MultiPolygon features
-    features = [
-        feat for feat in geojson['features']
-        if feat['geometry']['type'] in ['Polygon', 'MultiPolygon']
-    ]
-
-    if not features:
-        raise ValueError(f"No polygon building features found for '{area_name}'.")
-
-    geojson_filtered = {
-        "type": "FeatureCollection",
-        "features": features
-    }
-
-    with open(save_as, 'w', encoding='utf-8') as f:
-        json.dump(geojson_filtered, f, ensure_ascii=False, indent=2)
-
-    return geojson_filtered, save_as
+if st.button("🔍 Search Buildings"):
+    if not area_name.strip():
+        st.warning("⚠️ Please enter a valid area name.")
+    else:
+        with st.spinner("⏳ Searching building names... Please wait."):
+            try:
+                results = search_buildings(area_name)
+                if results:
+                    st.success(f"✅ Found {len(results)} named buildings in {area_name}")
+                    st.dataframe(results, use_container_width=True)
+                else:
+                    st.warning(f"No named buildings found in '{area_name}'.")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
