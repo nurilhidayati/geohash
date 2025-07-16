@@ -9,8 +9,6 @@ import tempfile
 import zipfile
 import os
 
-st.title("🔄 Geohash ke GeoJSON")
-
 # Convert geohash to polygon
 def geohash_to_polygon(gh):
     lat, lon, lat_err, lon_err = geohash2.decode_exactly(gh)
@@ -24,7 +22,7 @@ def geohash_to_polygon(gh):
         (lon_min, lat_min)
     ])
 
-st.title("🗺️ Geohash CSV to GeoJSON Converter")
+st.title("Geohash CSV to GeoJSON Converter")
 st.markdown("Upload one or more CSV files containing a `geoHash` column. Each file will be converted to a GeoJSON with polygons.")
 
 uploaded_files = st.file_uploader("Upload CSV files", type="csv", accept_multiple_files=True)
