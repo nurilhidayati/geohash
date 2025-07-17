@@ -13,5 +13,5 @@ Selamat datang di **GeoHash Toolbox**!
 Gunakan menu di sidebar kiri:
 - 🔄 Area to GeoHash6
 - ➡️ CSV to GeoJSON
-- 🗺️ GeoJSON to CSv
+- 🗺️ GeoJSON to CSV
 """)
