@@ -1,7 +1,7 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="GeoHash Toolbox",
+    page_title="Karta IoT Tools",
     page_icon="🌍",
     initial_sidebar_state="expanded"  # ✅ biar sidebar langsung terbuka
 )
