@@ -6,9 +6,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"  # ✅ biar sidebar langsung terbuka
 )
 
-st.title("🌍 GeoHash Toolbox")
+st.title("🌍 Karta IoT Tools")
 st.markdown("""
-Selamat datang di **GeoHash Toolbox**!
+Selamat datang di **Karta IoT Tools**!
 
 Gunakan menu di sidebar kiri:
 - 🔄 Area to GeoHash6
