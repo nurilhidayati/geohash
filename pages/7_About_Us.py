@@ -3,25 +3,33 @@ from PIL import Image
 import base64
 from io import BytesIO
 
-# Helper to convert image to base64
+# Helper: Convert image to base64 string
 def image_to_base64(img):
     buffered = BytesIO()
     img.save(buffered, format="PNG")
-    img_b64 = base64.b64encode(buffered.getvalue()).decode()
-    return img_b64
+    return base64.b64encode(buffered.getvalue()).decode()
 
-# Custom CSS
-st.markdown("""
+# Load and encode Slack icon
+with open("pages/slack_icon.png", "rb") as icon_file:
+    slack_icon_b64 = base64.b64encode(icon_file.read()).decode()
+
+# CSS for layout
+st.markdown(f"""
     <style>
-    .profile-container {
+    .profile-container {{
         text-align: center;
         margin-bottom: 20px;
-    }
-    .profile-container img {
+    }}
+    .profile-container img.profile {{
         border-radius: 15px;
         object-fit: cover;
         box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
+    }}
+    .slack-icon {{
+        height: 16px;
+        vertical-align: middle;
+        margin-right: 4px;
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -73,13 +81,16 @@ for col, member in zip(cols, team_members):
         img_b64 = image_to_base64(member["photo"])
         st.markdown(f"""
             <div class="profile-container">
-                <img src="data:image/png;base64,{img_b64}" width="200"><br>
+                <img class="profile" src="data:image/png;base64,{img_b64}" width="200"><br>
                 <strong>{member['name']}</strong><br>
-                💬 <a href="{member['slack']}">{member['username']}</a>
+                <a href="{member['slack']}">
+                    <img class="slack-icon" src="data:image/png;base64,{slack_icon_b64}" />
+                    {member['username']}
+                </a>
             </div>
         """, unsafe_allow_html=True)
 
-# Display Mentors Centered
+# Display Mentors
 st.markdown("### 👨‍🏫 Mentors")
 col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 2, 1])
 for col, mentor in zip([col2, col4], mentors):
@@ -87,9 +98,12 @@ for col, mentor in zip([col2, col4], mentors):
         img_b64 = image_to_base64(mentor["photo"])
         st.markdown(f"""
             <div class="profile-container">
-                <img src="data:image/png;base64,{img_b64}" width="200"><br>
+                <img class="profile" src="data:image/png;base64,{img_b64}" width="200"><br>
                 <strong>{mentor['name']}</strong><br>
-                💬 <a href="{mentor['slack']}">{mentor['username']}</a>
+                <a href="{mentor['slack']}">
+                    <img class="slack-icon" src="data:image/png;base64,{slack_icon_b64}" />
+                    {mentor['username']}
+                </a>
             </div>
         """, unsafe_allow_html=True)
 
