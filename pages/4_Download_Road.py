@@ -29,13 +29,13 @@ def download_all_roads_from_geohashes(geohash_list):
     for gh in geohash_list:
         try:
             polygon = geohash_to_polygon(gh)
-            gdf_all = ox.geometries_from_polygon(polygon, tags=tags)
+            gdf_all = ox.features_from_polygon(polygon, tags=tags)
 
             if gdf_all.empty:
                 st.warning(f"⚠️ No road features in geohash {gh}")
                 continue
 
-            gdf = gdf_all[gdf_all.geometry.type.isin(["LineString", "MultiLineString"])]
+            gdf = gdf_all[gdf_all.features.type.isin(["LineString", "MultiLineString"])]
 
             if gdf.empty:
                 st.warning(f"⚠️ No road geometries found in geohash {gh}")
@@ -72,8 +72,8 @@ if uploaded_file and st.button("🗂️ Download All Roads (GeoJSON)"):
                     st.success(f"✅ {len(gdf_roads)} road segments found.")
                     st.download_button("⬇️ Download Roads", buffer, "all_roads.geojson", "application/geo+json")
 
-                    gdf_roads["lon"] = gdf_roads.geometry.centroid.x
-                    gdf_roads["lat"] = gdf_roads.geometry.centroid.y
+                    gdf_roads["lon"] = gdf_roads.features.centroid.x
+                    gdf_roads["lat"] = gdf_roads.features.centroid.y
                     st.map(gdf_roads[["lat", "lon"]])
     except Exception as e:
         st.error(f"❌ Unexpected error: {e}")
