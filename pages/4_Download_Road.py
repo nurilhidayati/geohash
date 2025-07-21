@@ -23,12 +23,14 @@ def download_restricted_roads_from_geohashes(geohash_list):
     for gh in geohash_list:
         try:
             polygon = geohash_to_polygon(gh)
-            gdf_all = ox.features.features_from_polygon(polygon)
+            # Ambil semua geometri OSM dalam polygon
+            gdf_all = ox.geometries_from_polygon(polygon, tags=None)
+
             if gdf_all.empty:
-                st.warning(f"⚠️ No OSM features at all in geohash {gh}")
+                st.warning(f"⚠️ No OSM features in geohash {gh}")
                 continue
 
-            # Manual filter
+            # Filter fitur jalan terbatas
             gdf = gdf_all[
                 gdf_all.geometry.type.isin(["LineString", "MultiLineString"]) &
                 (
@@ -45,9 +47,11 @@ def download_restricted_roads_from_geohashes(geohash_list):
                 continue
 
             all_roads = pd.concat([all_roads, gdf])
+
         except Exception as e:
             st.warning(f"⚠️ Failed to fetch for geohash {gh}: {e}")
     return all_roads.reset_index(drop=True)
+
 
 
 # Tombol proses
