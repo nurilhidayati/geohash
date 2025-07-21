@@ -2,7 +2,8 @@ import streamlit as st
 import geohash2
 import osmnx as ox
 import geopandas as gpd
-from shapely.geometry import box
+import pandas as pd
+from shapely.geometry import box, Polygon
 
 # Set default highway filters
 HIGHWAY_FILTERS = [
@@ -11,46 +12,54 @@ HIGHWAY_FILTERS = [
     "tertiary", "tertiary_link", "living_street", "service", "unclassified"
 ]
 
-st.title("OSM Road Downloader from Geohash List")
+st.title("🚗 OSM Road Downloader from Geohash-6 List")
 
 # Input geohashes
-geohash_input = st.text_area("Enter list of Geohashes (one per line):")
+geohash_input = st.text_area("Enter list of Geohash-6 (one per line):", height=200)
 
 # Download button
 if st.button("Download Roads"):
-    geohash_list = geohash_input.strip().splitlines()
+    geohash_list = [gh.strip() for gh in geohash_input.strip().splitlines() if gh.strip()]
 
     if not geohash_list:
-        st.warning("Please enter at least one geohash.")
+        st.warning("❗ Please enter at least one geohash.")
     else:
-        st.info("Downloading data...")
-
+        st.info("🔄 Downloading data from OSM...")
         all_roads = gpd.GeoDataFrame()
 
         for gh in geohash_list:
             try:
-                lat, lon = geohash2.decode(gh)
-                precision = len(gh)
                 bbox = geohash2.bbox(gh)
-                bounds = box(bbox['w'], bbox['s'], bbox['e'], bbox['n'])
+                bounds_polygon = Polygon([
+                    (bbox['w'], bbox['s']),
+                    (bbox['e'], bbox['s']),
+                    (bbox['e'], bbox['n']),
+                    (bbox['w'], bbox['n']),
+                    (bbox['w'], bbox['s'])
+                ])
 
-                # Use osmnx to get road network by bounding box
-                graph = ox.graph_from_polygon(bounds, network_type='all')
-                edges = ox.graph_to_gdfs(graph, nodes=False)
+                # Download road network inside bounding polygon
+                G = ox.graph_from_polygon(bounds_polygon, network_type='all')
+                edges = ox.graph_to_gdfs(G, nodes=False)
 
-                # Filter by highway tag
-                filtered = edges[edges['highway'].isin(HIGHWAY_FILTERS)]
+                # Normalize highway tags to lists for filtering
+                def match_highway(hw):
+                    if isinstance(hw, list):
+                        return any(h in HIGHWAY_FILTERS for h in hw)
+                    return hw in HIGHWAY_FILTERS
+
+                filtered = edges[edges['highway'].apply(match_highway)]
                 all_roads = pd.concat([all_roads, filtered])
 
             except Exception as e:
-                st.error(f"Error processing geohash {gh}: {e}")
+                st.error(f"❌ Error processing geohash {gh}: {e}")
 
         if not all_roads.empty:
-            # Save to GeoPackage (or any format you want)
-            output_file = "roads_from_geohash.gpkg"
+            all_roads = all_roads.reset_index(drop=True)
+            output_file = "roads_from_geohash6.gpkg"
             all_roads.to_file(output_file, layer='roads', driver="GPKG")
-            st.success(f"Downloaded and saved {len(all_roads)} roads.")
+            st.success(f"✅ Downloaded and saved {len(all_roads)} road segments.")
             with open(output_file, "rb") as f:
-                st.download_button("Download Result", f, file_name=output_file)
+                st.download_button("📥 Download Result", f, file_name=output_file)
         else:
-            st.warning("No road data found for the input geohashes.")
+            st.warning("⚠️ No road data found for the provided geohashes.")
