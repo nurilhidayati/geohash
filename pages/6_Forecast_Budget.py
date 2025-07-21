@@ -80,11 +80,11 @@ with st.form("forecast_form"):
     st.header("🔧 Input Parameters")
     col1, col2 = st.columns(2)
     with col1:
-        target_km = st.number_input("📏 Total Target KM", min_value=0.0, value=10000.0, step=100.0)
-        dax_number = st.number_input("👷 Jumlah DAX", min_value=1, value=10, step=1)
+        target_km = st.number_input("📏 Total Target KM", min_value=0.0, value=0.0, step=100.0)
+        dax_number = st.number_input("👷 Jumlah DAX", min_value=1, value=1, step=1)
     with col2:
-        harga_ukm = st.number_input("💰 Harga per KM (UKM)", min_value=0.0, value=5000.0, step=100.0)
-        month_estimation = st.number_input("🗓️ Estimasi Bulan", min_value=0.1, value=3.0, step=0.1, format="%.1f")
+        harga_ukm = st.number_input("💰 Harga per KM (UKM)", min_value=0.0, value=8000.0, step=100.0)
+        month_estimation = st.number_input("🗓️ Estimasi Bulan", min_value=0.1, value=1.0, step=0.1, format="%.1f")
 
     submitted = st.form_submit_button("🧮 Hitung Budget")
 
