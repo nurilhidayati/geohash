@@ -1,13 +1,29 @@
 import streamlit as st
 from PIL import Image
 
-# Custom CSS for rounded HD images
+# Inject CSS styling
 st.markdown("""
     <style>
-    .team-photo img {
+    .team-photo-container {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .team-photo-container img {
         border-radius: 15px;
         object-fit: cover;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        width: 180px;
+        height: 180px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    .team-photo-container .name {
+        margin: 8px 0 2px 0;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    .team-photo-container .username {
+        margin: 0;
+        font-size: 14px;
+        color: #aaa;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -52,27 +68,31 @@ mentors = [
     },
 ]
 
-# Display Core Team
+# Show Core Team
 st.markdown("### 👩‍💻 Core Team")
 cols = st.columns(len(team_members))
 for col, member in zip(cols, team_members):
     with col:
-        st.markdown('<div class="team-photo">', unsafe_allow_html=True)
-        st.image(member["photo"], width=200)
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown(f"**{member['name']}**")
-        st.markdown(f"💬 [{member['username']}]({member['slack']})")
+        st.markdown(f"""
+            <div class="team-photo-container">
+                <img src="data:image/png;base64,{st.image(member['photo'], output_format='png').data.decode()}" alt="{member['name']}">
+                <div class="name">{member['name']}</div>
+                <div class="username">💬 <a href="{member['slack']}" target="_blank">{member['username']}</a></div>
+            </div>
+        """, unsafe_allow_html=True)
 
-# Display Mentors Centered
+# Show Mentors
 st.markdown("### 👨‍🏫 Mentors")
 col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 2, 1])
 for col, mentor in zip([col2, col4], mentors):
     with col:
-        st.markdown('<div class="team-photo">', unsafe_allow_html=True)
-        st.image(mentor["photo"], width=200)
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown(f"**{mentor['name']}**")
-        st.markdown(f"💬 [{mentor['username']}]({mentor['slack']})")
+        st.markdown(f"""
+            <div class="team-photo-container">
+                <img src="data:image/jpeg;base64,{st.image(mentor['photo'], output_format='jpeg').data.decode()}" alt="{mentor['name']}">
+                <div class="name">{mentor['name']}</div>
+                <div class="username">💬 <a href="{mentor['slack']}" target="_blank">{mentor['username']}</a></div>
+            </div>
+        """, unsafe_allow_html=True)
 
 # Documentation
 st.subheader("📘 Documentation")
