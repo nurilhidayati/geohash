@@ -9,11 +9,10 @@ def image_to_base64(img):
     img.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode()
 
-# Load and encode Slack icon
-with open("pages/slack_icon.png", "rb") as icon_file:
-    slack_icon_b64 = base64.b64encode(icon_file.read()).decode()
+# Public Slack icon URL (white background)
+SLACK_ICON_URL = "https://upload.wikimedia.org/wikipedia/commons/7/76/Slack_Icon.png"
 
-# CSS for layout
+# CSS for layout and icon
 st.markdown(f"""
     <style>
     .profile-container {{
@@ -58,6 +57,7 @@ team_members = [
     },
 ]
 
+# Mentors
 mentors = [
     {
         "name": "Qitfirul",
@@ -83,14 +83,14 @@ for col, member in zip(cols, team_members):
             <div class="profile-container">
                 <img class="profile" src="data:image/png;base64,{img_b64}" width="200"><br>
                 <strong>{member['name']}</strong><br>
-                <a href="{member['slack']}">
-                    <img class="slack-icon" src="data:image/png;base64,{slack_icon_b64}" />
+                <a href="{member['slack']}" target="_blank">
+                    <img class="slack-icon" src="{SLACK_ICON_URL}" />
                     {member['username']}
                 </a>
             </div>
         """, unsafe_allow_html=True)
 
-# Display Mentors
+# Display Mentors Centered
 st.markdown("### 👨‍🏫 Mentors")
 col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 2, 1])
 for col, mentor in zip([col2, col4], mentors):
@@ -100,8 +100,8 @@ for col, mentor in zip([col2, col4], mentors):
             <div class="profile-container">
                 <img class="profile" src="data:image/png;base64,{img_b64}" width="200"><br>
                 <strong>{mentor['name']}</strong><br>
-                <a href="{mentor['slack']}">
-                    <img class="slack-icon" src="data:image/png;base64,{slack_icon_b64}" />
+                <a href="{mentor['slack']}" target="_blank">
+                    <img class="slack-icon" src="{SLACK_ICON_URL}" />
                     {mentor['username']}
                 </a>
             </div>
