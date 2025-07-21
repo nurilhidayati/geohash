@@ -80,11 +80,5 @@ if uploaded_file and st.button("🗂️ Download Roads (GeoJSON)"):
                     buffer.seek(0)
                     st.download_button("⬇️ Download Roads", buffer, "roads_inside_geohash.geojson", "application/geo+json")
 
-                    # Tampilkan titik tengah tiap geometri
-                    gdf_proj = gdf_roads.to_crs(epsg=3857)
-                    centroids = gdf_proj.geometry.centroid.to_crs(epsg=4326)
-                    gdf_roads["lon"] = centroids.x
-                    gdf_roads["lat"] = centroids.y
-                    st.map(gdf_roads[["lat", "lon"]])
     except Exception as e:
         st.error(f"❌ Unexpected error: {e}")
