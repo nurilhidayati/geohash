@@ -29,7 +29,7 @@ def download_all_roads_from_geohashes(geohash_list):
     for gh in geohash_list:
         try:
             polygon = geohash_to_polygon(gh)
-            gdf_all = ox.features_from_polygon(polygon, tags=tags)
+            gdf_all = ox.features_from_polygon(polygon, tags=tags)  # ✅ updated here
 
             if gdf_all.empty:
                 st.warning(f"⚠️ No road features in geohash {gh}")
@@ -46,6 +46,7 @@ def download_all_roads_from_geohashes(geohash_list):
         except Exception as e:
             st.warning(f"⚠️ Failed to fetch for geohash {gh}: {e}")
     return all_roads.reset_index(drop=True)
+
 
 if uploaded_file and st.button("🗂️ Download All Roads (GeoJSON)"):
     try:
