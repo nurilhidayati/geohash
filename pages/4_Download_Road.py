@@ -19,29 +19,36 @@ def geohash_to_polygon(gh):
 
 # Fungsi utama: ambil restricted roads berdasarkan daftar geohash
 def download_restricted_roads_from_geohashes(geohash_list):
-    tags = {
-        "access": ["private", "no", "military", "customers", "permit"],
-        "highway": ["service"],
-        "service": True,
-        "barrier": ["gate", "fence", "bollard"],
-        "military": True,
-        "landuse": ["military", "industrial", "government"]
-    }
-
     all_roads = gpd.GeoDataFrame()
     for gh in geohash_list:
         try:
             polygon = geohash_to_polygon(gh)
-            gdf = ox.features.features_from_polygon(polygon, tags=tags)
-            if gdf.empty:
-                st.warning(f"⚠️ No matching roads found in geohash {gh}")
+            gdf_all = ox.features.features_from_polygon(polygon)
+            if gdf_all.empty:
+                st.warning(f"⚠️ No OSM features at all in geohash {gh}")
                 continue
-            gdf = gdf[gdf.geometry.type.isin(["LineString", "MultiLineString"])]
+
+            # Manual filter
+            gdf = gdf_all[
+                gdf_all.geometry.type.isin(["LineString", "MultiLineString"]) &
+                (
+                    (gdf_all.get("access").isin(["private", "no", "military", "customers", "permit"])) |
+                    (gdf_all.get("barrier").isin(["gate", "fence", "bollard"])) |
+                    (gdf_all.get("highway") == "service") |
+                    (gdf_all.get("military").notna()) |
+                    (gdf_all.get("landuse").isin(["military", "industrial", "government"]))
+                )
+            ]
+
+            if gdf.empty:
+                st.warning(f"⚠️ No restricted roads found in geohash {gh}")
+                continue
+
             all_roads = pd.concat([all_roads, gdf])
         except Exception as e:
             st.warning(f"⚠️ Failed to fetch for geohash {gh}: {e}")
-    all_roads = all_roads.reset_index(drop=True)
-    return all_roads
+    return all_roads.reset_index(drop=True)
+
 
 # Tombol proses
 if uploaded_file and st.button("🚧 Download Restricted Roads (GeoJSON)"):
