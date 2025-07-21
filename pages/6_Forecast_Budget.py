@@ -4,11 +4,11 @@ def forecast_budget(
     target_km: float,
     harga_ukm: float,
     dax_number: int,
+    month_estimation = int,
     insurance_per_dax_per_month: float = 132000,
     dataplan_per_dax_per_month: float = 450000
 ):
-    # Hitung estimasi bulan
-    month_estimation = target_km / (dax_number * 80)
+
 
     # Basic Incentive dan Bonus
     basic_incentive = target_km * harga_ukm
