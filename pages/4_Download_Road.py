@@ -10,27 +10,31 @@ st.title("🗺️ Restricted Roads Downloader (GeoHash6 Based)")
 
 uploaded_file = st.file_uploader("📄 Upload CSV with `geoHash` column (length 6)", type=["csv"])
 
-# Fungsi bantu: decode geohash ke bounding box polygon
 def geohash_to_polygon(gh):
     if len(gh) != 6:
         raise ValueError("Geohash must be 6 characters long.")
     lat, lon, lat_err, lon_err = geohash2.decode_exactly(gh)
     return box(lon - lon_err, lat - lat_err, lon + lon_err, lat + lat_err)
 
-# Fungsi utama: ambil restricted roads berdasarkan daftar geohash
 def download_restricted_roads_from_geohashes(geohash_list):
     all_roads = gpd.GeoDataFrame()
+    tags = {
+        "access": True,
+        "barrier": True,
+        "highway": True,
+        "military": True,
+        "landuse": True
+    }
+
     for gh in geohash_list:
         try:
             polygon = geohash_to_polygon(gh)
-            # Ambil semua geometri OSM dalam polygon
-            gdf_all = ox.geometries_from_polygon(polygon, tags=None)
+            gdf_all = ox.geometries_from_polygon(polygon, tags=tags)
 
             if gdf_all.empty:
                 st.warning(f"⚠️ No OSM features in geohash {gh}")
                 continue
 
-            # Filter fitur jalan terbatas
             gdf = gdf_all[
                 gdf_all.geometry.type.isin(["LineString", "MultiLineString"]) &
                 (
@@ -52,9 +56,6 @@ def download_restricted_roads_from_geohashes(geohash_list):
             st.warning(f"⚠️ Failed to fetch for geohash {gh}: {e}")
     return all_roads.reset_index(drop=True)
 
-
-
-# Tombol proses
 if uploaded_file and st.button("🚧 Download Restricted Roads (GeoJSON)"):
     try:
         df = pd.read_csv(uploaded_file)
@@ -79,7 +80,7 @@ if uploaded_file and st.button("🚧 Download Restricted Roads (GeoJSON)"):
                     buffer.seek(0)
                     st.success(f"✅ {len(gdf_roads)} restricted roads found.")
                     st.download_button("⬇️ Download Roads", buffer, "restricted_roads.geojson", "application/geo+json")
-                    # Preview peta
+
                     gdf_roads["lon"] = gdf_roads.geometry.centroid.x
                     gdf_roads["lat"] = gdf_roads.geometry.centroid.y
                     st.map(gdf_roads[["lat", "lon"]])
