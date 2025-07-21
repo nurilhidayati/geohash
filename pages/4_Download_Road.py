@@ -2,114 +2,65 @@ import streamlit as st
 import osmnx as ox
 import geopandas as gpd
 import pandas as pd
+import io
 import geohash2
-from shapely.geometry import Polygon, MultiPolygon
-from streamlit_folium import st_folium
-import folium
+from shapely.geometry import box
 
-# Set default highway filters
-HIGHWAY_FILTERS = [
-    "motorway", "motorway_link", "secondary", "secondary_link",
-    "primary", "primary_link", "residential", "trunk", "trunk_link",
-    "tertiary", "tertiary_link", "living_street", "service", "unclassified"
-]
+st.title("🗺️ Restricted Area & Road Downloader")
 
-st.title("📍 OSM Road Downloader from GeoJSON Upload")
+# 👉 Upload file berisi geohash
+uploaded_file = st.file_uploader("Upload CSV with geohash column", type=["csv"])
 
-# Upload GeoJSON
-uploaded_file = st.file_uploader("Upload a GeoJSON file with polygon geometries:", type=["geojson", "json"])
+# Fungsi bantu: Decode geohash ke polygon
+def geohash_to_polygon(gh):
+    lat, lon, lat_err, lon_err = geohash2.decode_exactly(gh)
+    return box(lon - lon_err, lat - lat_err, lon + lon_err, lat + lat_err)
 
-# Checkbox to show/hide map
-show_map = st.checkbox("Show Map Preview", value=True)
+# Fungsi utama: Download jalan terbatas (LineString)
+def download_restricted_roads_from_geohashes(geohash_list):
+    tags = {
+        "access": ["private", "no", "military", "customers", "permit"],
+        "highway": ["service"],
+        "service": True,
+        "barrier": ["gate", "fence", "bollard"],
+        "military": True,
+        "landuse": ["military", "industrial", "government"]
+    }
 
-# Trigger download processing
-if uploaded_file and st.button("Download Roads"):
+    all_roads = gpd.GeoDataFrame()
+    for gh in geohash_list:
+        try:
+            polygon = geohash_to_polygon(gh)
+            gdf = ox.features.features_from_polygon(polygon, tags=tags)
+            gdf = gdf[gdf.geometry.type.isin(["LineString", "MultiLineString"])]
+            all_roads = pd.concat([all_roads, gdf])
+        except Exception as e:
+            st.warning(f"⚠️ Failed to fetch for geohash {gh}: {e}")
+    all_roads = all_roads.reset_index(drop=True)
+    return all_roads
+
+# Tombol download roads
+if uploaded_file and st.button("🚧 Download Restricted Roads (GeoJSON)"):
     try:
-        gdf = gpd.read_file(uploaded_file)
-
-        if gdf.empty:
-            st.warning("⚠️ The uploaded GeoJSON is empty.")
-        elif not gdf.geometry.is_valid.all():
-            st.error("❌ Some geometries are invalid.")
+        df = pd.read_csv(uploaded_file)
+        if 'geohash' not in df.columns:
+            st.error("❌ CSV must contain a 'geohash' column.")
         else:
-            st.info("🔄 Downloading road data from OSM...")
-            all_roads_list = []
-
-            for i, geom in enumerate(gdf.geometry):
-                try:
-                    if geom.is_empty:
-                        continue
-
-                    if isinstance(geom, (Polygon, MultiPolygon)):
-                        G = ox.graph_from_polygon(geom, network_type='all', simplify=True)
-
-                        if len(G.nodes) == 0 or len(G.edges) == 0:
-                            st.warning(f"⚠️ No roads found in geometry {i}. Skipping.")
-                            continue
-
-                        edges = ox.graph_to_gdfs(G, nodes=False)
-
-                        def match_highway(hw):
-                            if isinstance(hw, list):
-                                return any(h in HIGHWAY_FILTERS for h in hw)
-                            return hw in HIGHWAY_FILTERS
-
-                        filtered = edges[edges['highway'].apply(match_highway)]
-                        if not filtered.empty:
-                            all_roads_list.append(filtered)
-                    else:
-                        st.warning(f"⚠️ Skipping unsupported geometry type at index {i}.")
-                except Exception as e:
-                    st.warning(f"⚠️ Could not download roads for geometry {i}: {e}")
-                    continue
-
-            if all_roads_list:
-                all_roads = pd.concat(all_roads_list).reset_index(drop=True)
-
-                # Compute geohash based on geometry centroid
-                def compute_geohash(geom, precision=7):
-                    try:
-                        centroid = geom.centroid
-                        return geohash2.encode(centroid.y, centroid.x, precision=precision)
-                    except Exception:
-                        return None
-
-                all_roads["geoHash"] = all_roads.geometry.apply(compute_geohash)
-
-                # Calculate total length
-                all_roads_metric = all_roads.to_crs(epsg=3857)
-                all_roads_metric["length_m"] = all_roads_metric.geometry.length
-                total_length_km = all_roads_metric["length_m"].sum() / 1000
-
-                st.success(f"✅ Found {len(all_roads)} road segments.")
-                st.info(f"🧮 Total Road Length: **{total_length_km:.2f} km**")
-
-                all_roads_display = all_roads.copy()
-                all_roads_display["geometry"] = all_roads_display["geometry"].apply(lambda x: x.wkt)
-                st.dataframe(all_roads_display[['name', 'highway', 'geoHash', 'geometry']].head(10))
-
-                # Show on map
-                if show_map:
-                    try:
-                        centroid = gdf.geometry.centroid.iloc[0]
-                        m = folium.Map(location=[centroid.y, centroid.x], zoom_start=14)
-                        folium.GeoJson(all_roads, name="Roads").add_to(m)
-
-                        st.subheader("🗺️ Map View of Extracted Roads")
-                        st_folium(m, width=700, height=500)
-                    except Exception as map_error:
-                        st.warning(f"⚠️ Could not render map: {map_error}")
-
-                # Export result
-                output_file = "roads_from_geojson.gpkg"
-                try:
-                    all_roads.to_file(output_file, layer='roads', driver="GPKG")
-                    with open(output_file, "rb") as f:
-                        st.download_button("📥 Download Result (.gpkg)", f, file_name=output_file)
-                except Exception as file_error:
-                    st.error(f"❌ Failed to save output: {file_error}")
+            geohash_list = df['geohash'].dropna().unique().tolist()
+            st.info("Fetching restricted roads from geohashes...")
+            gdf_roads = download_restricted_roads_from_geohashes(geohash_list)
+            if gdf_roads.empty:
+                st.warning("⚠️ No roads found in the selected geohashes.")
             else:
-                st.warning("⚠️ No road data found in the uploaded area.")
-
-    except Exception as load_error:
-        st.error(f"❌ Failed to read uploaded file: {load_error}")
+                gdf_roads = gdf_roads.to_crs(epsg=4326)
+                buffer = io.BytesIO()
+                gdf_roads.to_file(buffer, driver="GeoJSON")
+                buffer.seek(0)
+                st.success(f"✅ {len(gdf_roads)} restricted roads found")
+                st.download_button("⬇️ Download Roads", buffer, "restricted_roads.geojson", "application/geo+json")
+                # Map preview
+                gdf_roads["lon"] = gdf_roads.geometry.centroid.x
+                gdf_roads["lat"] = gdf_roads.geometry.centroid.y
+                st.map(gdf_roads[["lat", "lon"]])
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
