@@ -73,8 +73,6 @@ def forecast_budget(
 
 # Title
 st.markdown('<div class="title">📊 Forecast Budget Estimator</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Estimate your budget with a clean, dark-themed tool</div>', unsafe_allow_html=True)
-
 # Input Form
 with st.form("forecast_form"):
     st.header("🔧 Input Parameters")
