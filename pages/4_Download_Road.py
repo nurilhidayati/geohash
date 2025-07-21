@@ -3,7 +3,7 @@ import geohash2
 import osmnx as ox
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import box, Polygon
+from shapely.geometry import Polygon
 
 # Set default highway filters
 HIGHWAY_FILTERS = [
@@ -11,6 +11,10 @@ HIGHWAY_FILTERS = [
     "primary", "primary_link", "residential", "trunk", "trunk_link",
     "tertiary", "tertiary_link", "living_street", "service", "unclassified"
 ]
+
+# Approximate geohash-6 cell dimensions (in degrees)
+LAT_HEIGHT = 0.61 / 111  # ~0.0055 deg
+LON_WIDTH = 1.22 / 111  # ~0.011 deg
 
 st.title("🚗 OSM Road Downloader from Geohash-6 List")
 
@@ -29,20 +33,23 @@ if st.button("Download Roads"):
 
         for gh in geohash_list:
             try:
-                bbox = geohash2.bbox(gh)
+                lat, lon = geohash2.decode(gh)
+                lat_min = lat - LAT_HEIGHT / 2
+                lat_max = lat + LAT_HEIGHT / 2
+                lon_min = lon - LON_WIDTH / 2
+                lon_max = lon + LON_WIDTH / 2
+
                 bounds_polygon = Polygon([
-                    (bbox['w'], bbox['s']),
-                    (bbox['e'], bbox['s']),
-                    (bbox['e'], bbox['n']),
-                    (bbox['w'], bbox['n']),
-                    (bbox['w'], bbox['s'])
+                    (lon_min, lat_min),
+                    (lon_max, lat_min),
+                    (lon_max, lat_max),
+                    (lon_min, lat_max),
+                    (lon_min, lat_min)
                 ])
 
-                # Download road network inside bounding polygon
                 G = ox.graph_from_polygon(bounds_polygon, network_type='all')
                 edges = ox.graph_to_gdfs(G, nodes=False)
 
-                # Normalize highway tags to lists for filtering
                 def match_highway(hw):
                     if isinstance(hw, list):
                         return any(h in HIGHWAY_FILTERS for h in hw)
