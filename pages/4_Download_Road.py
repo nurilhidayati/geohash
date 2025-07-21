@@ -18,7 +18,6 @@ st.title("📍 OSM Road Downloader from GeoJSON Upload")
 # Upload GeoJSON
 uploaded_file = st.file_uploader("Upload a GeoJSON file with polygon geometries:", type=["geojson", "json"])
 
-# Trigger download processing
 if uploaded_file and st.button("Download Roads"):
     try:
         gdf = gpd.read_file(uploaded_file)
@@ -38,13 +37,17 @@ if uploaded_file and st.button("Download Roads"):
 
                 try:
                     G = ox.graph_from_polygon(geom, network_type='all', simplify=True)
+                    
                     if len(G.nodes) == 0:
-                        st.warning(f"⚠️ No roads found in geometry {i}. Skipping.")
+                        st.warning(f"⚠️ Geometry {i}: No graph nodes found. Skipping.")
+                        continue
+
+                    if len(G.edges) == 0:
+                        st.warning(f"⚠️ Geometry {i}: Graph contains no edges. Skipping.")
                         continue
 
                     edges = ox.graph_to_gdfs(G, nodes=False)
 
-                    # Filter roads
                     def match_highway(hw):
                         if isinstance(hw, list):
                             return any(h in HIGHWAY_FILTERS for h in hw)
@@ -53,15 +56,17 @@ if uploaded_file and st.button("Download Roads"):
                     filtered = edges[edges['highway'].apply(match_highway)]
                     if not filtered.empty:
                         all_roads_list.append(filtered)
+                    else:
+                        st.warning(f"⚠️ Geometry {i}: No matching highways found.")
                 except Exception as e:
-                    st.warning(f"⚠️ Could not download roads for geometry {i}: {e}")
+                    st.warning(f"⚠️ Geometry {i}: Error - {e}")
                     continue
 
             if all_roads_list:
                 all_roads = pd.concat(all_roads_list).reset_index(drop=True)
 
                 # Calculate total road length in kilometers
-                all_roads_metric = all_roads.to_crs(epsg=3857)  # Project to metric CRS
+                all_roads_metric = all_roads.to_crs(epsg=3857)
                 all_roads_metric["length_m"] = all_roads_metric.geometry.length
                 total_length_km = all_roads_metric["length_m"].sum() / 1000
 
@@ -69,7 +74,7 @@ if uploaded_file and st.button("Download Roads"):
                 st.info(f"🧮 Total Road Length: **{total_length_km:.2f} km**")
                 st.dataframe(all_roads[['name', 'highway', 'geometry']].head(10))
 
-                # Map view
+                # Map View
                 try:
                     centroid = gdf.geometry.centroid.iloc[0]
                     m = folium.Map(location=[centroid.y, centroid.x], zoom_start=14)
@@ -89,7 +94,7 @@ if uploaded_file and st.button("Download Roads"):
                 except Exception as file_error:
                     st.error(f"❌ Failed to save output: {file_error}")
             else:
-                st.warning("⚠️ No road data found in the uploaded area.")
+                st.warning("⚠️ No valid road data found in any of the polygons.")
 
     except Exception as load_error:
         st.error(f"❌ Failed to read uploaded file: {load_error}")
