@@ -70,24 +70,28 @@ if st.button("Download Roads"):
         if all_roads_list:
             all_roads = pd.concat(all_roads_list).reset_index(drop=True)
 
-            # Show map
+            # ✅ Show summary stats
+            st.success(f"✅ Found {len(all_roads)} road segments from {len(geohash_list)} geohash tiles.")
+            st.caption("📋 Sample of downloaded road data:")
+            st.dataframe(all_roads[['name', 'highway', 'geometry']].head(10))
+
+            # 🗺️ Show map
             try:
                 center_lat, center_lon = geohash2.decode(geohash_list[0])
                 m = folium.Map(location=[float(center_lat), float(center_lon)], zoom_start=14)
-                folium.GeoJson(all_roads).add_to(m)
+                folium.GeoJson(all_roads, name="Roads").add_to(m)
 
                 st.subheader("🗺️ Map View of Extracted Roads")
                 st_folium(m, width=700, height=500)
             except Exception as map_error:
                 st.warning(f"⚠️ Could not render map: {map_error}")
 
-            # Export to file
+            # 📥 Export to file
             output_file = "roads_from_geohash6.gpkg"
             try:
                 all_roads.to_file(output_file, layer='roads', driver="GPKG")
-                st.success(f"✅ Downloaded and saved {len(all_roads)} road segments.")
                 with open(output_file, "rb") as f:
-                    st.download_button("📥 Download Result", f, file_name=output_file)
+                    st.download_button("📥 Download Result (.gpkg)", f, file_name=output_file)
             except Exception as file_error:
                 st.error(f"❌ Failed to save output: {file_error}")
         else:
