@@ -6,7 +6,7 @@ import io
 import geohash2
 from shapely.geometry import box
 
-st.title("🛣️ All Roads Downloader (GeoHash6 Based)")
+st.title("🛣️ Road Downloader - Only Inside GeoHash6 Box")
 
 uploaded_file = st.file_uploader("📄 Upload CSV with `geoHash` column (length 6)", type=["csv"])
 
@@ -16,7 +16,7 @@ def geohash_to_polygon(gh):
     lat, lon, lat_err, lon_err = geohash2.decode_exactly(gh)
     return box(lon - lon_err, lat - lat_err, lon + lon_err, lat + lat_err)
 
-def download_all_roads_from_geohashes(geohash_list):
+def download_clipped_roads_from_geohashes(geohash_list):
     all_roads = gpd.GeoDataFrame()
     tags = {
         "highway": [
@@ -36,20 +36,19 @@ def download_all_roads_from_geohashes(geohash_list):
                 continue
 
             gdf_lines = gdf_all[gdf_all.geometry.type.isin(["LineString", "MultiLineString"])]
-            gdf_filtered = gdf_lines[gdf_lines.intersects(polygon)]
+            gdf_clipped = gpd.clip(gdf_lines, polygon)
 
-            if gdf_filtered.empty:
-                st.warning(f"⚠️ No road geometries intersect with geohash {gh}")
+            if gdf_clipped.empty:
+                st.warning(f"⚠️ No clipped roads inside geohash {gh}")
                 continue
 
-            all_roads = pd.concat([all_roads, gdf_filtered])
+            all_roads = pd.concat([all_roads, gdf_clipped])
 
         except Exception as e:
             st.warning(f"⚠️ Failed to fetch for geohash {gh}: {e}")
     return all_roads.reset_index(drop=True)
 
-
-if uploaded_file and st.button("🗂️ Download All Roads (GeoJSON)"):
+if uploaded_file and st.button("🗂️ Download Roads (GeoJSON)"):
     try:
         df = pd.read_csv(uploaded_file)
         if 'geoHash' not in df.columns:
@@ -61,18 +60,18 @@ if uploaded_file and st.button("🗂️ Download All Roads (GeoJSON)"):
             if not geohash_list:
                 st.warning("⚠️ No valid 6-character geohashes found.")
             else:
-                st.info(f"🔍 Fetching roads from {len(geohash_list)} geohash6 areas...")
-                gdf_roads = download_all_roads_from_geohashes(geohash_list)
+                st.info(f"🔍 Fetching clipped roads from {len(geohash_list)} geohash6 areas...")
+                gdf_roads = download_clipped_roads_from_geohashes(geohash_list)
 
                 if gdf_roads.empty:
-                    st.warning("⚠️ No roads found in all geohashes.")
+                    st.warning("⚠️ No roads found inside all geohashes.")
                 else:
                     gdf_roads = gdf_roads.to_crs(epsg=4326)
                     buffer = io.BytesIO()
                     gdf_roads.to_file(buffer, driver="GeoJSON")
                     buffer.seek(0)
-                    st.success(f"✅ {len(gdf_roads)} road segments found.")
-                    st.download_button("⬇️ Download Roads", buffer, "all_roads.geojson", "application/geo+json")
+                    st.success(f"✅ {len(gdf_roads)} clipped road segments found.")
+                    st.download_button("⬇️ Download Roads", buffer, "roads_inside_geohash.geojson", "application/geo+json")
 
                     gdf_roads["lon"] = gdf_roads.geometry.centroid.x
                     gdf_roads["lat"] = gdf_roads.geometry.centroid.y

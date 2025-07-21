@@ -29,19 +29,20 @@ def download_all_roads_from_geohashes(geohash_list):
     for gh in geohash_list:
         try:
             polygon = geohash_to_polygon(gh)
-            gdf_all = ox.features_from_polygon(polygon, tags=tags)  # ✅ updated here
+            gdf_all = ox.features_from_polygon(polygon, tags=tags)
 
             if gdf_all.empty:
                 st.warning(f"⚠️ No road features in geohash {gh}")
                 continue
 
-            gdf = gdf_all[gdf_all.geometry.type.isin(["LineString", "MultiLineString"])]
+            gdf_lines = gdf_all[gdf_all.geometry.type.isin(["LineString", "MultiLineString"])]
+            gdf_filtered = gdf_lines[gdf_lines.intersects(polygon)]
 
-            if gdf.empty:
-                st.warning(f"⚠️ No road geometries found in geohash {gh}")
+            if gdf_filtered.empty:
+                st.warning(f"⚠️ No road geometries intersect with geohash {gh}")
                 continue
 
-            all_roads = pd.concat([all_roads, gdf])
+            all_roads = pd.concat([all_roads, gdf_filtered])
 
         except Exception as e:
             st.warning(f"⚠️ Failed to fetch for geohash {gh}: {e}")
