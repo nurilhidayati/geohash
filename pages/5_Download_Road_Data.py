@@ -66,15 +66,25 @@ if uploaded_file and st.button("🗂️ Download Roads (GeoJSON)"):
                 if gdf_roads.empty:
                     st.warning("⚠️ No roads found inside all geohashes.")
                 else:
+                    # Hitung panjang total jalan (dalam kilometer)
+                    gdf_roads_metric = gdf_roads.to_crs(epsg=3857)
+                    total_length_km = gdf_roads_metric.length.sum() / 1000
+
+                    st.success(f"✅ {len(gdf_roads)} clipped road segments found.")
+                    st.info(f"🧮 Total road length: **{total_length_km:.2f} km**")
+
+                    # Simpan GeoJSON
                     gdf_roads = gdf_roads.to_crs(epsg=4326)
                     buffer = io.BytesIO()
                     gdf_roads.to_file(buffer, driver="GeoJSON")
                     buffer.seek(0)
-                    st.success(f"✅ {len(gdf_roads)} clipped road segments found.")
                     st.download_button("⬇️ Download Roads", buffer, "roads_inside_geohash.geojson", "application/geo+json")
 
-                    gdf_roads["lon"] = gdf_roads.geometry.centroid.x
-                    gdf_roads["lat"] = gdf_roads.geometry.centroid.y
+                    # Tampilkan titik tengah tiap geometri
+                    gdf_proj = gdf_roads.to_crs(epsg=3857)
+                    centroids = gdf_proj.geometry.centroid.to_crs(epsg=4326)
+                    gdf_roads["lon"] = centroids.x
+                    gdf_roads["lat"] = centroids.y
                     st.map(gdf_roads[["lat", "lon"]])
     except Exception as e:
         st.error(f"❌ Unexpected error: {e}")
