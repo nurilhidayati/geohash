@@ -3,7 +3,7 @@ import osmnx as ox
 import geopandas as gpd
 import pandas as pd
 import io
-import geoHash2
+import geohash2 
 from shapely.geometry import box
 
 st.title("🗺️ Restricted Area & Road Downloader")
