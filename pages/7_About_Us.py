@@ -1,11 +1,21 @@
 import streamlit as st
 from PIL import Image
+import base64
+from io import BytesIO
+
+# Helper to convert image to base64
+def image_to_base64(img):
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_b64 = base64.b64encode(buffered.getvalue()).decode()
+    return img_b64
 
 # Custom CSS
 st.markdown("""
     <style>
     .profile-container {
         text-align: center;
+        margin-bottom: 20px;
     }
     .profile-container img {
         border-radius: 15px;
@@ -60,9 +70,10 @@ st.markdown("### 👩‍💻 Core Team")
 cols = st.columns(len(team_members))
 for col, member in zip(cols, team_members):
     with col:
+        img_b64 = image_to_base64(member["photo"])
         st.markdown(f"""
             <div class="profile-container">
-                <img src="data:image/png;base64,{st.image(member["photo"], width=200, output_format='PNG').image_to_url().split(",")[1]}" width="200"><br>
+                <img src="data:image/png;base64,{img_b64}" width="200"><br>
                 <strong>{member['name']}</strong><br>
                 💬 <a href="{member['slack']}">{member['username']}</a>
             </div>
@@ -73,9 +84,10 @@ st.markdown("### 👨‍🏫 Mentors")
 col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 2, 1])
 for col, mentor in zip([col2, col4], mentors):
     with col:
+        img_b64 = image_to_base64(mentor["photo"])
         st.markdown(f"""
             <div class="profile-container">
-                <img src="data:image/png;base64,{st.image(mentor["photo"], width=200, output_format='PNG').image_to_url().split(",")[1]}" width="200"><br>
+                <img src="data:image/png;base64,{img_b64}" width="200"><br>
                 <strong>{mentor['name']}</strong><br>
                 💬 <a href="{mentor['slack']}">{mentor['username']}</a>
             </div>
