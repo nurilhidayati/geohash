@@ -4,6 +4,8 @@ import osmnx as ox
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Polygon
+from streamlit_folium import st_folium
+import folium
 
 # Set default highway filters
 HIGHWAY_FILTERS = [
@@ -70,3 +72,26 @@ if st.button("Download Roads"):
                 st.download_button("📥 Download Result", f, file_name=output_file)
         else:
             st.warning("⚠️ No road data found for the provided geohashes.")
+            
+if not all_roads.empty:
+    all_roads = all_roads.reset_index(drop=True)
+
+    # Center map on first geohash center
+    center_lat, center_lon = geohash2.decode(geohash_list[0])
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=15)
+
+    # Add roads to map
+    folium.GeoJson(all_roads).add_to(m)
+
+    # Show the map
+    st.subheader("🗺️ Map View of Extracted Roads")
+    st_folium(m, width=700, height=500)
+
+    # Export to file
+    output_file = "roads_from_geohash6.gpkg"
+    all_roads.to_file(output_file, layer='roads', driver="GPKG")
+    st.success(f"✅ Downloaded and saved {len(all_roads)} road segments.")
+    with open(output_file, "rb") as f:
+        st.download_button("📥 Download Result", f, file_name=output_file)
+else:
+    st.warning("⚠️ No road data found for the provided geohashes.")
