@@ -2,6 +2,7 @@ import streamlit as st
 import osmnx as ox
 import geopandas as gpd
 import pandas as pd
+import geohash2
 from shapely.geometry import Polygon, MultiPolygon
 from streamlit_folium import st_folium
 import folium
@@ -65,6 +66,17 @@ if uploaded_file and st.button("Download Roads"):
             if all_roads_list:
                 all_roads = pd.concat(all_roads_list).reset_index(drop=True)
 
+                # Compute geohash based on geometry centroid
+                def compute_geohash(geom, precision=7):
+                    try:
+                        centroid = geom.centroid
+                        return geohash2.encode(centroid.y, centroid.x, precision=precision)
+                    except Exception:
+                        return None
+
+                all_roads["geoHash"] = all_roads.geometry.apply(compute_geohash)
+
+                # Calculate total length
                 all_roads_metric = all_roads.to_crs(epsg=3857)
                 all_roads_metric["length_m"] = all_roads_metric.geometry.length
                 total_length_km = all_roads_metric["length_m"].sum() / 1000
@@ -74,8 +86,9 @@ if uploaded_file and st.button("Download Roads"):
 
                 all_roads_display = all_roads.copy()
                 all_roads_display["geometry"] = all_roads_display["geometry"].apply(lambda x: x.wkt)
-                st.dataframe(all_roads_display[['name', 'highway', 'geometry']].head(10))
+                st.dataframe(all_roads_display[['name', 'highway', 'geoHash', 'geometry']].head(10))
 
+                # Show on map
                 if show_map:
                     try:
                         centroid = gdf.geometry.centroid.iloc[0]
@@ -87,7 +100,7 @@ if uploaded_file and st.button("Download Roads"):
                     except Exception as map_error:
                         st.warning(f"⚠️ Could not render map: {map_error}")
 
-                # Export
+                # Export result
                 output_file = "roads_from_geojson.gpkg"
                 try:
                     all_roads.to_file(output_file, layer='roads', driver="GPKG")
