@@ -1,32 +1,44 @@
 import streamlit as st
-import streamlit.components.v1 as components
 
 # Set page config
 st.set_page_config(page_title="Forecast Budget Estimator", layout="centered")
 
-# Styling
+# Dark mode CSS
 st.markdown(
     """
     <style>
+    body {
+        background-color: #111111;
+        color: white;
+    }
     .title {
         text-align: center;
         font-size: 32px;
         font-weight: bold;
-        color: #2C3E50;
+        color: #F1C40F;
         margin-bottom: 10px;
     }
     .subtitle {
         text-align: center;
         font-size: 18px;
-        color: #7F8C8D;
+        color: #BDC3C7;
         margin-bottom: 30px;
     }
     .result-box {
-        background-color: #f9f9f9;
-        border: 1px solid #e1e1e1;
+        background-color: #1e1e1e;
+        border: 1px solid #444;
         border-radius: 12px;
         padding: 16px;
         margin-bottom: 10px;
+        color: white;
+    }
+    label, .stNumberInput label, .stTextInput label {
+        color: white !important;
+    }
+    .stButton button {
+        background-color: #F1C40F;
+        color: black;
+        font-weight: bold;
     }
     </style>
     """,
@@ -61,7 +73,7 @@ def forecast_budget(
 
 # Title
 st.markdown('<div class="title">📊 Forecast Budget Estimator</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Estimate the total budget based on your target coverage and operational costs</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Estimate your budget with a clean, dark-themed tool</div>', unsafe_allow_html=True)
 
 # Input Form
 with st.form("forecast_form"):
@@ -82,8 +94,7 @@ if submitted:
 
     st.markdown("### 📑 Hasil Perhitungan:")
     for key, value in result.items():
-        with st.container():
-            if "Month" in key:
-                st.markdown(f'<div class="result-box"><strong>{key}:</strong> {value} bulan</div>', unsafe_allow_html=True)
-            else:
-                st.markdown(f'<div class="result-box"><strong>{key}:</strong> Rp {value:,.0f}</div>', unsafe_allow_html=True)
+        if "Month" in key:
+            st.markdown(f'<div class="result-box"><strong>{key}:</strong> {value} bulan</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="result-box"><strong>{key}:</strong> Rp {value:,.0f}</div>', unsafe_allow_html=True)
