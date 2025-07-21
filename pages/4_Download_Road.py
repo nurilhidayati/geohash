@@ -14,7 +14,7 @@ HIGHWAY_FILTERS = [
     "tertiary", "tertiary_link", "living_street", "service", "unclassified"
 ]
 
-# Approximate geohash-6 cell size in degrees (very rough)
+# Approximate geohash-6 cell size in degrees
 LAT_HEIGHT = 0.0055
 LON_WIDTH = 0.011
 
@@ -31,11 +31,10 @@ if st.button("Download Roads"):
         st.warning("❗ Please enter at least one geohash.")
     else:
         st.info("🔄 Downloading data from OSM...")
-        all_roads = gpd.GeoDataFrame()
+        all_roads_list = []
 
         for gh in geohash_list:
             try:
-                # decode() might return str; convert to float just to be safe
                 lat_str, lon_str = geohash2.decode(gh)
                 lat = float(lat_str)
                 lon = float(lon_str)
@@ -62,27 +61,34 @@ if st.button("Download Roads"):
                     return hw in HIGHWAY_FILTERS
 
                 filtered = edges[edges['highway'].apply(match_highway)]
-                all_roads = pd.concat([all_roads, filtered])
+                if not filtered.empty:
+                    all_roads_list.append(filtered)
 
             except Exception as e:
-                st.error(f"❌ Error processing geohash {gh}: {e}")
+                st.error(f"❌ Error processing geohash '{gh}': {e}")
 
-        if not all_roads.empty:
-            all_roads = all_roads.reset_index(drop=True)
+        if all_roads_list:
+            all_roads = pd.concat(all_roads_list).reset_index(drop=True)
 
             # Show map
-            center_lat, center_lon = geohash2.decode(geohash_list[0])
-            m = folium.Map(location=[float(center_lat), float(center_lon)], zoom_start=14)
-            folium.GeoJson(all_roads).add_to(m)
+            try:
+                center_lat, center_lon = geohash2.decode(geohash_list[0])
+                m = folium.Map(location=[float(center_lat), float(center_lon)], zoom_start=14)
+                folium.GeoJson(all_roads).add_to(m)
 
-            st.subheader("🗺️ Map View of Extracted Roads")
-            st_folium(m, width=700, height=500)
+                st.subheader("🗺️ Map View of Extracted Roads")
+                st_folium(m, width=700, height=500)
+            except Exception as map_error:
+                st.warning(f"⚠️ Could not render map: {map_error}")
 
             # Export to file
             output_file = "roads_from_geohash6.gpkg"
-            all_roads.to_file(output_file, layer='roads', driver="GPKG")
-            st.success(f"✅ Downloaded and saved {len(all_roads)} road segments.")
-            with open(output_file, "rb") as f:
-                st.download_button("📥 Download Result", f, file_name=output_file)
+            try:
+                all_roads.to_file(output_file, layer='roads', driver="GPKG")
+                st.success(f"✅ Downloaded and saved {len(all_roads)} road segments.")
+                with open(output_file, "rb") as f:
+                    st.download_button("📥 Download Result", f, file_name=output_file)
+            except Exception as file_error:
+                st.error(f"❌ Failed to save output: {file_error}")
         else:
             st.warning("⚠️ No road data found for the provided geohashes.")
