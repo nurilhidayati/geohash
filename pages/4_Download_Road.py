@@ -32,27 +32,30 @@ if uploaded_file and st.button("Download Roads"):
             all_roads_list = []
 
             for i, geom in enumerate(gdf.geometry):
+                if geom.is_empty or not isinstance(geom, (Polygon, MultiPolygon)):
+                    st.warning(f"⚠️ Skipping geometry {i}: empty or unsupported type.")
+                    continue
+
                 try:
-                    if geom.is_empty:
+                    G = ox.graph_from_polygon(geom, network_type='all', simplify=True)
+                    if len(G.nodes) == 0:
+                        st.warning(f"⚠️ No roads found in geometry {i}. Skipping.")
                         continue
 
-                    if isinstance(geom, (Polygon, MultiPolygon)):
-                        G = ox.graph_from_polygon(geom, network_type='all')
-                        edges = ox.graph_to_gdfs(G, nodes=False)
+                    edges = ox.graph_to_gdfs(G, nodes=False)
 
-                        # Filter roads
-                        def match_highway(hw):
-                            if isinstance(hw, list):
-                                return any(h in HIGHWAY_FILTERS for h in hw)
-                            return hw in HIGHWAY_FILTERS
+                    # Filter roads
+                    def match_highway(hw):
+                        if isinstance(hw, list):
+                            return any(h in HIGHWAY_FILTERS for h in hw)
+                        return hw in HIGHWAY_FILTERS
 
-                        filtered = edges[edges['highway'].apply(match_highway)]
-                        if not filtered.empty:
-                            all_roads_list.append(filtered)
-                    else:
-                        st.warning(f"⚠️ Skipping unsupported geometry type at index {i}.")
+                    filtered = edges[edges['highway'].apply(match_highway)]
+                    if not filtered.empty:
+                        all_roads_list.append(filtered)
                 except Exception as e:
-                    st.error(f"❌ Error processing geometry {i}: {e}")
+                    st.warning(f"⚠️ Could not download roads for geometry {i}: {e}")
+                    continue
 
             if all_roads_list:
                 all_roads = pd.concat(all_roads_list).reset_index(drop=True)
