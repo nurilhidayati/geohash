@@ -8,6 +8,26 @@ from streamlit_folium import st_folium
 import os
 
 
+@st.cache_data(ttl=86400)
+def get_all_kabupaten_names():
+    overpass_url = "https://overpass-api.de/api/interpreter"
+    query = """
+    [out:json][timeout:60];
+    area["name"="Indonesia"]->.indonesia;
+    (
+      relation["boundary"="administrative"]["admin_level"="6"](area.indonesia);
+    );
+    out tags;
+    """
+    response = requests.get(overpass_url, params={'data': query})
+    if response.status_code != 200:
+        raise Exception("Failed to fetch kabupaten list from Overpass API.")
+
+    data = response.json()
+    names = sorted({el["tags"]["name"] for el in data["elements"] if "tags" in el and "name" in el["tags"]})
+    return names
+
+
 def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     overpass_url = "https://overpass-api.de/api/interpreter"
     query = f"""
@@ -67,7 +87,7 @@ def get_bounds_from_geojson(geojson):
 
 
 # --- Streamlit UI ---
-st.header("🌍 Download Area Boundary as GeoJSON")
+st.header("🌍 Download Kabupaten Boundary (Admin Level 6)")
 
 # Initialize session_state
 if "geojson_data" not in st.session_state:
@@ -77,27 +97,33 @@ if "download_path" not in st.session_state:
 if "filename" not in st.session_state:
     st.session_state.filename = ""
 
-area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
+# Get all kabupaten names from OSM
+with st.spinner("🔍 Fetching kabupaten list..."):
+    try:
+        kabupaten_names = get_all_kabupaten_names()
+    except Exception as e:
+        st.error(f"❌ Failed to load kabupaten list: {e}")
+        st.stop()
 
-if st.button("Download Boundary"):
-    if not area_name.strip():
-        st.warning("⚠️ Please enter an area name.")
-    else:
-        with st.spinner("⏳ Processing... Please wait."):
-            try:
-                filename = area_name.strip().replace(" ", "_").lower() + "_boundary.geojson"
+# Select kabupaten from dropdown
+selected_kabupaten = st.selectbox("Select a Kabupaten/Kota in Indonesia:", kabupaten_names)
 
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson", mode='w') as tmpfile:
-                    geojson_data, filepath = download_boundary_geojson(area_name, save_as=tmpfile.name)
+if st.button("⬇️ Download Boundary"):
+    with st.spinner("⏳ Downloading boundary data..."):
+        try:
+            filename = selected_kabupaten.strip().replace(" ", "_").lower() + "_boundary.geojson"
 
-                    # Save to session state
-                    st.session_state.geojson_data = geojson_data
-                    st.session_state.download_path = filepath
-                    st.session_state.filename = filename
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson", mode='w') as tmpfile:
+                geojson_data, filepath = download_boundary_geojson(selected_kabupaten, save_as=tmpfile.name)
 
-                    st.success("✅ Boundary successfully retrieved!")
-            except Exception as e:
-                st.error(str(e))
+                # Save to session state
+                st.session_state.geojson_data = geojson_data
+                st.session_state.download_path = filepath
+                st.session_state.filename = filename
+
+                st.success("✅ Boundary successfully retrieved!")
+        except Exception as e:
+            st.error(str(e))
 
 # Map preview
 st.subheader("🗺️ Map Preview")
@@ -114,7 +140,7 @@ if st.session_state.geojson_data:
 
 st_folium(m, width=700, height=450)
 
-# Download button always shown if data available
+# Download button
 if st.session_state.download_path and os.path.exists(st.session_state.download_path):
     with open(st.session_state.download_path, 'rb') as f:
         st.download_button(
