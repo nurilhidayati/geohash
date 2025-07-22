@@ -48,6 +48,27 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     return geojson_filtered, save_as
 
 
+def get_bounds_from_geojson(geojson):
+    bounds = [[90, 180], [-90, -180]]  # [min_lat, min_lon], [max_lat, max_lon]
+
+    for feature in geojson['features']:
+        coords = feature['geometry']['coordinates']
+        if feature['geometry']['type'] == 'Polygon':
+            rings = [coords]
+        else:  # MultiPolygon
+            rings = coords
+
+        for ring in rings:
+            for point in ring[0]:
+                lon, lat = point
+                bounds[0][0] = min(bounds[0][0], lat)
+                bounds[0][1] = min(bounds[0][1], lon)
+                bounds[1][0] = max(bounds[1][0], lat)
+                bounds[1][1] = max(bounds[1][1], lon)
+
+    return bounds
+
+
 # --- Streamlit UI ---
 st.header("🌍 Download Area Boundary as GeoJSON")
 
@@ -85,21 +106,15 @@ if st.button("Download Boundary"):
 # Map preview
 st.subheader("🗺️ Map Preview")
 
-map_location = [-2.5, 117.5]  # default center of Indonesia
-m = folium.Map(location=map_location, zoom_start=5)
+m = folium.Map(location=[-2.5, 117.5], zoom_start=5)
 
 if st.session_state.geojson_data:
     geojson = st.session_state.geojson_data
-    coords = geojson['features'][0]['geometry']['coordinates']
-    if geojson['features'][0]['geometry']['type'] == 'Polygon':
-        lon, lat = coords[0][0]
-    else:
-        lon, lat = coords[0][0][0]
+    gj = folium.GeoJson(geojson, name="Boundary")
+    gj.add_to(m)
 
-    # Update map location
-    m.location = [lat, lon]
-    m.zoom_start = 10
-    folium.GeoJson(geojson, name="Boundary").add_to(m)
+    bounds = get_bounds_from_geojson(geojson)
+    m.fit_bounds(bounds)
 
 st_folium(m, width=700, height=450)
 
