@@ -4,50 +4,52 @@ import json
 import tempfile
 import osm2geojson
 
-def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geojson'):
+def get_area_id(area_name):
     """
-    Downloads administrative boundaries from OSM by name, filters by admin_level.
-    Accepts fuzzy names like 'Jawa Barat' (no ', Indonesia').
+    Get area ID from name using Overpass API (area[name=...] lookup).
     """
-    overpass_url = "https://overpass-api.de/api/interpreter"
-
-    # Ambil semua relasi dengan nama sesuai
     query = f"""
     [out:json][timeout:25];
-    (
-      relation["boundary"="administrative"]["name"="{area_name}"];
-    );
+    area["name"="{area_name}"][admin_level];
+    out ids;
+    """
+    response = requests.get("https://overpass-api.de/api/interpreter", params={"data": query})
+    data = response.json()
+    areas = data.get("elements", [])
+    if not areas:
+        raise ValueError(f"❌ Area ID not found for '{area_name}'")
+    return areas[0]["id"]
+
+
+def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geojson'):
+    """
+    Downloads administrative boundaries using area ID and filters by admin_level.
+    """
+    area_id = get_area_id(area_name)
+    admin_filter = f'["admin_level"="{admin_level}"]' if admin_level else ""
+    query = f"""
+    [out:json][timeout:25];
+    relation["boundary"="administrative"]{admin_filter}(area:{area_id});
     out body;
     >;
     out skel qt;
     """
 
-    response = requests.get(overpass_url, params={'data': query})
+    response = requests.get("https://overpass-api.de/api/interpreter", params={"data": query})
     if response.status_code != 200:
         raise Exception("Failed to query Overpass API")
 
     data = response.json()
-    if 'elements' not in data or len(data['elements']) == 0:
-        raise ValueError(f"No OSM relation found for '{area_name}'.")
+    if 'elements' not in data or not data['elements']:
+        raise ValueError(f"No boundary data found for '{area_name}' with admin_level={admin_level}.")
 
-    # Convert to GeoJSON
-    geojson = osm2geojson.json2geojson(data)
+    geojson = osm2geojson.json2geojson(data, filter_used_refs=True)
 
-    # Filter features by geometry and admin_level
-    features = []
-    for feat in geojson['features']:
-        props = feat.get('properties', {})
-        geom_type = feat['geometry']['type']
-        if geom_type not in ['Polygon', 'MultiPolygon']:
-            continue
-        if admin_level:
-            if props.get("admin_level") == str(admin_level):
-                features.append(feat)
-        else:
-            features.append(feat)
+    features = [feat for feat in geojson['features']
+                if feat['geometry']['type'] in ['Polygon', 'MultiPolygon']]
 
     if not features:
-        raise ValueError(f"No polygon boundaries found for '{area_name}' with admin_level={admin_level}.")
+        raise ValueError(f"No polygon geometry found for '{area_name}' with admin_level={admin_level}.")
 
     geojson_filtered = {
         "type": "FeatureCollection",
@@ -74,7 +76,7 @@ admin_options = {
 selected_label = st.selectbox("Select administrative level", options=list(admin_options.keys()))
 admin_level = admin_options[selected_label]
 
-custom_filename = st.text_input("Optional: Enter output filename (e.g., bandung_boundary.geojson)")
+custom_filename = st.text_input("Optional: Enter output filename (e.g., jawa_barat_boundary.geojson)")
 
 if st.button("Download Boundary"):
     if not area_name.strip():
