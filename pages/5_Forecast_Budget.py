@@ -139,35 +139,43 @@ if uploaded_file:
 
 # --- MANUAL INPUT ---
 st.subheader("🧮 Manual Calculation")
-with st.form("forecast_form"):
-    st.header("🔧 Input Parameters")
-    target_km = st.number_input("📏 Total Target KM", min_value=0.0, value=0.0, step=100.0)
-    dax_number = st.number_input("👷 Number of DAX", min_value=1, value=1, step=1)
-    month_estimation = st.number_input("🗓️ Duration (months)", min_value=0.1, value=1.0, step=0.1, format="%.1f")
-    submitted = st.form_submit_button("🧮 Calculate Budget")
 
-if submitted:
-    result = forecast_budget(target_km, dax_number, month_estimation, exchange_rate=exchange_rate)
+# Dua kolom: kiri untuk input, kanan untuk hasil
+col1, col2 = st.columns([1, 1.2])
 
-    # Display bullet points (exclude total rows)
-    bullets = ""
-    for key, value in result.items():
-        if "Total Forecast Budget" in key:
-            continue
-        elif "Month" in key:
-            bullets += f"- **{key}**: {value} bulan\n"
-        elif "USD" in key:
-            continue
-        else:
-            bullets += f"- **{key}**: {format_currency(value)}\n"
-    st.markdown(bullets)
+with col1:
+    with st.form("forecast_form"):
+        st.markdown("#### 🔧 Input Parameters")
+        target_km = st.number_input("📏 Total Target KM", min_value=0.0, value=0.0, step=100.0)
+        dax_number = st.number_input("👷 Number of DAX", min_value=1, value=1, step=1)
+        month_estimation = st.number_input("🗓️ Duration (months)", min_value=0.1, value=1.0, step=0.1, format="%.1f")
+        submitted = st.form_submit_button("🧮 Calculate Budget")
 
-    # Display total IDR & USD together
-    st.markdown(
-        f"""
-        <div class="result-box">
-            <strong>Total Forecast Budget:</strong> {format_currency(result["Total Forecast Budget"])} &nbsp;&nbsp; | &nbsp;&nbsp;
-            <strong>USD:</strong> ${result["Total Forecast Budget (USD)"]:,.2f}
-        </div>
-        """, unsafe_allow_html=True
-    )
+with col2:
+    if submitted:
+        result = forecast_budget(target_km, dax_number, month_estimation, exchange_rate=exchange_rate)
+        st.markdown("#### 📈 Forecast Result")
+
+        # Bullet list komponen biaya
+        bullets = ""
+        for key, value in result.items():
+            if "Total Forecast Budget" in key:
+                continue
+            elif "Month" in key:
+                bullets += f"- **{key}**: {value} bulan\n"
+            elif "USD" in key:
+                continue
+            else:
+                bullets += f"- **{key}**: {format_currency(value)}\n"
+        st.markdown(bullets)
+
+        # Total dalam 1 baris: IDR dan USD
+        st.markdown(
+            f"""
+            <div class="result-box">
+                <strong>Total Forecast Budget:</strong> {format_currency(result["Total Forecast Budget"])} &nbsp;&nbsp; | &nbsp;&nbsp;
+                <strong>USD:</strong> ${result["Total Forecast Budget (USD)"]:,.2f}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
