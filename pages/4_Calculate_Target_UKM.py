@@ -6,9 +6,9 @@ import io
 import geohash2
 from shapely.geometry import box
 
-st.title("🛣️ Road Downloader - Only Inside GeoHash6 Box")
+st.title("🛣️ Calculate Target UKM")
 
-uploaded_file = st.file_uploader("📄 Upload CSV with `geoHash` column (length 6)", type=["csv"])
+uploaded_file = st.file_uploader("📄 Upload CSV with `geoHash` column", type=["csv"])
 
 def geohash_to_polygon(gh):
     if len(gh) != 6:
