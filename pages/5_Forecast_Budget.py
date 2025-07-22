@@ -141,11 +141,9 @@ if uploaded_file:
 st.subheader("🧮 Manual Calculation")
 with st.form("forecast_form"):
     st.header("🔧 Input Parameters")
-    col1, col2 = st.columns(2)
-    with col1:
-        target_km = st.number_input("📏 Total Target KM", min_value=0.0, value=0.0, step=100.0)
-        dax_number = st.number_input("👷 Number of DAX", min_value=1, value=1, step=1)
-        month_estimation = st.number_input("🗓️ Duration (months)", min_value=0.1, value=1.0, step=0.1, format="%.1f")
+    target_km = st.number_input("📏 Total Target KM", min_value=0.0, value=0.0, step=100.0)
+    dax_number = st.number_input("👷 Number of DAX", min_value=1, value=1, step=1)
+    month_estimation = st.number_input("🗓️ Duration (months)", min_value=0.1, value=1.0, step=0.1, format="%.1f")
     submitted = st.form_submit_button("🧮 Calculate Budget")
 
 if submitted:
