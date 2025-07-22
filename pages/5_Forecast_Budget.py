@@ -2,18 +2,25 @@ import streamlit as st
 import pandas as pd
 import requests
 
-# Fungsi ambil kurs USD-IDR
+import requests
+
 @st.cache_data(ttl=3600)
 def get_usd_to_idr_rate():
     try:
         response = requests.get("https://api.exchangerate.host/latest?base=USD&symbols=IDR")
         response.raise_for_status()
         data = response.json()
-        return round(data["rates"]["IDR"], 2)
+
+        # Cek apakah 'rates' dan 'IDR' tersedia
+        if "rates" in data and "IDR" in data["rates"]:
+            return round(data["rates"]["IDR"], 2)
+        else:
+            st.warning("⚠️ Data kurs tidak lengkap. Menggunakan default Rp 16.000.")
+            return 16000
     except Exception as e:
-        st.warning("⚠️ Gagal mengambil kurs online. Menggunakan nilai default Rp 16.000")
-        return 16000  # fallback default
-   
+        st.warning(f"⚠️ Gagal mengambil kurs online. Menggunakan default Rp 16.000.\n\nError: {e}")
+        return 16000
+
 
 # Page config
 st.set_page_config(page_title="Forecast Budget Estimator", layout="centered")
