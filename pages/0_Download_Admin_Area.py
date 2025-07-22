@@ -4,16 +4,21 @@ import json
 import tempfile
 import osm2geojson
 
-def download_boundary_geojson(area_name, save_as='boundary.geojson'):
+def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geojson'):
     """
-    Downloads administrative boundary polygons only as GeoJSON using Overpass API.
+    Downloads administrative boundary polygons as GeoJSON using Overpass API.
+    Can be filtered by admin_level (e.g., 4=provinsi, 6=kabupaten, 8=kecamatan).
     """
     overpass_url = "https://overpass-api.de/api/interpreter"
+
+    # Build admin level filter
+    admin_filter = f'["admin_level"="{admin_level}"]' if admin_level else ""
+
     query = f"""
     [out:json][timeout:25];
     area["name"="{area_name}"]->.searchArea;
     (
-      relation["boundary"="administrative"](area.searchArea);
+      relation["boundary"="administrative"]{admin_filter}(area.searchArea);
     );
     out body;
     >;
@@ -26,7 +31,7 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
 
     data = response.json()
     if 'elements' not in data or len(data['elements']) == 0:
-        raise ValueError(f"No boundary data found for '{area_name}'.")
+        raise ValueError(f"No boundary data found for '{area_name}' with admin_level={admin_level}.")
 
     # Convert to GeoJSON
     geojson = osm2geojson.json2geojson(data)
@@ -52,9 +57,23 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
 # --- Streamlit UI ---
 st.header("🌍 Download Area Boundary as GeoJSON")
 
-area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
+# Input area name
+area_name = st.text_input("Enter area name (e.g., Jawa Barat, Jakarta, Sleman)")
+
+# Admin level dropdown
+admin_options = {
+    "All levels": None,
+    "Provinsi (admin_level = 4)": "4",
+    "Kabupaten/Kota (admin_level = 6)": "6",
+    "Kecamatan (admin_level = 8)": "8"
+}
+selected_label = st.selectbox("Select administrative level", options=list(admin_options.keys()))
+admin_level = admin_options[selected_label]
+
+# Optional filename
 custom_filename = st.text_input("Optional: Enter output filename (e.g., jakarta_boundary.geojson)")
 
+# Button to trigger download
 if st.button("Download Boundary"):
     if not area_name.strip():
         st.warning("⚠️ Please enter an area name.")
@@ -64,7 +83,7 @@ if st.button("Download Boundary"):
                 final_filename = custom_filename.strip() or f"{area_name.replace(' ', '_')}_boundary.geojson"
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmpfile:
-                    geojson_data, filepath = download_boundary_geojson(area_name, save_as=tmpfile.name)
+                    geojson_data, filepath = download_boundary_geojson(area_name, admin_level=admin_level, save_as=tmpfile.name)
 
                     with open(filepath, 'rb') as f:
                         st.success("✅ Boundary ready. Click below to download:")
