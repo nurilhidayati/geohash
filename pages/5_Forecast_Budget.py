@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 # Set page config
 st.set_page_config(page_title="Forecast Budget Estimator", layout="centered")
@@ -45,13 +46,14 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# Forecast function
 def forecast_budget(
     target_km: float,
-    harga_ukm: float,
     dax_number: int,
     month_estimation: float,
-    insurance_per_dax_per_month: float = 132000,
-    dataplan_per_dax_per_month: float = 450000
+    harga_ukm: float = 8000,
+    insurance_per_dax_per_month: int = 132200,
+    dataplan_per_dax_per_month: int = 450000
 ):
     basic_incentive = target_km * harga_ukm
     bonus_coverage = target_km * harga_ukm
@@ -73,7 +75,35 @@ def forecast_budget(
 
 # Title
 st.markdown('<div class="title">📊 Forecast Budget Estimator</div>', unsafe_allow_html=True)
-# Input Form
+
+# Upload CSV for Bulk Forecast
+st.subheader("📂 Bulk Forecast dari CSV")
+uploaded_file = st.file_uploader("Unggah file CSV (dengan kolom: target_km, dax_number, month_estimation)", type=["csv"])
+
+if uploaded_file:
+    df = pd.read_csv(uploaded_file)
+    required_cols = {'target_km', 'dax_number', 'month_estimation'}
+    if required_cols.issubset(df.columns):
+        st.success("✅ File berhasil diunggah dan dibaca.")
+        st.markdown("### 📋 Hasil Perhitungan Forecast (CSV):")
+
+        for idx, row in df.iterrows():
+            result = forecast_budget(
+                target_km=float(row['target_km']),
+                dax_number=int(row['dax_number']),
+                month_estimation=float(row['month_estimation'])
+            )
+            st.markdown(f"#### 🔹 Baris ke-{idx + 1}")
+            for key, value in result.items():
+                if "Month" in key:
+                    st.markdown(f'<div class="result-box"><strong>{key}:</strong> {value} bulan</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<div class="result-box"><strong>{key}:</strong> Rp {value:,.0f}</div>', unsafe_allow_html=True)
+    else:
+        st.error("⚠️ CSV tidak memiliki semua kolom yang dibutuhkan!")
+
+# Manual Input Form
+st.subheader("🧮 Hitung Manual")
 with st.form("forecast_form"):
     st.header("🔧 Input Parameters")
     col1, col2 = st.columns(2)
@@ -81,15 +111,12 @@ with st.form("forecast_form"):
         target_km = st.number_input("📏 Total Target KM", min_value=0.0, value=0.0, step=100.0)
         dax_number = st.number_input("👷 Jumlah DAX", min_value=1, value=1, step=1)
     with col2:
-        harga_ukm = st.number_input("💰 Harga per KM (UKM)", min_value=0.0, value=8000.0, step=100.0)
         month_estimation = st.number_input("🗓️ Estimasi Bulan", min_value=0.1, value=1.0, step=0.1, format="%.1f")
 
     submitted = st.form_submit_button("🧮 Hitung Budget")
 
-# Show Result
 if submitted:
-    result = forecast_budget(target_km, harga_ukm, dax_number, month_estimation)
-
+    result = forecast_budget(target_km, dax_number, month_estimation)
     st.markdown("### 📑 Hasil Perhitungan:")
     for key, value in result.items():
         if "Month" in key:
