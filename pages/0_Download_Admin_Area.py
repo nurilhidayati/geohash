@@ -7,11 +7,12 @@ import osm2geojson
 def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     """
     Downloads administrative boundary polygons excluding features with admin_level=4 and ISO3166-2='ID-JB'.
+    Uses regex matching for area name.
     """
     overpass_url = "https://overpass-api.de/api/interpreter"
     query = f"""
     [out:json][timeout:25];
-    area["name"="{area_name}"]->.searchArea;
+    area["name"~"{area_name}", i]->.searchArea;
     (
       relation["boundary"="administrative"](area.searchArea);
     );
@@ -53,17 +54,23 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     return geojson_filtered, save_as
 
 
-
 # --- Streamlit UI ---
-st.header("🌍 Download Area Boundary as GeoJSON")
+st.header("🌍 Download Area Boundary as GeoJSON (Excluding admin_level=4 ID-JB)")
 
-area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
+area_name_input = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
 custom_filename = st.text_input("Optional: Enter output filename (e.g., jakarta_boundary.geojson)")
 
 if st.button("Download Boundary"):
-    if not area_name.strip():
+    if not area_name_input.strip():
         st.warning("⚠️ Please enter an area name.")
     else:
+        # Strip common Indonesian prefixes
+        area_name = area_name_input.strip()
+        for prefix in ['Kabupaten ', 'Kota ']:
+            if area_name.startswith(prefix):
+                area_name = area_name[len(prefix):]
+                break
+
         with st.spinner("⏳ Processing... Please wait."):
             try:
                 final_filename = custom_filename.strip() or f"{area_name.replace(' ', '_')}_boundary.geojson"
