@@ -5,10 +5,14 @@ import requests
 # Fungsi ambil kurs USD-IDR
 @st.cache_data(ttl=3600)
 def get_usd_to_idr_rate():
-   
+    try:
         response = requests.get("https://api.exchangerate.host/latest?base=USD&symbols=IDR")
+        response.raise_for_status()
         data = response.json()
-        return data["rates"]["IDR"]
+        return round(data["rates"]["IDR"], 2)
+    except Exception as e:
+        st.warning("⚠️ Gagal mengambil kurs online. Menggunakan nilai default Rp 16.000")
+        return 16000  # fallback default
    
 
 # Page config
