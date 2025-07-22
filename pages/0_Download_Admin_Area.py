@@ -49,15 +49,13 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
 
 
 def get_bounds_from_geojson(geojson):
-    bounds = [[90, 180], [-90, -180]]  # [min_lat, min_lon], [max_lat, max_lon]
-
+    bounds = [[90, 180], [-90, -180]]
     for feature in geojson['features']:
         coords = feature['geometry']['coordinates']
         if feature['geometry']['type'] == 'Polygon':
             rings = [coords]
         else:  # MultiPolygon
             rings = coords
-
         for ring in rings:
             for point in ring[0]:
                 lon, lat = point
@@ -65,7 +63,6 @@ def get_bounds_from_geojson(geojson):
                 bounds[0][1] = min(bounds[0][1], lon)
                 bounds[1][0] = max(bounds[1][0], lat)
                 bounds[1][1] = max(bounds[1][1], lon)
-
     return bounds
 
 
@@ -81,7 +78,6 @@ if "filename" not in st.session_state:
     st.session_state.filename = ""
 
 area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
-custom_filename = st.text_input("Optional: Enter output filename (e.g., jakarta_boundary.geojson)")
 
 if st.button("Download Boundary"):
     if not area_name.strip():
@@ -89,7 +85,7 @@ if st.button("Download Boundary"):
     else:
         with st.spinner("⏳ Processing... Please wait."):
             try:
-                final_filename = custom_filename.strip() or f"{area_name.replace(' ', '_')}_boundary.geojson"
+                filename = area_name.strip().replace(" ", "_").lower() + "_boundary.geojson"
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson", mode='w') as tmpfile:
                     geojson_data, filepath = download_boundary_geojson(area_name, save_as=tmpfile.name)
@@ -97,7 +93,7 @@ if st.button("Download Boundary"):
                     # Save to session state
                     st.session_state.geojson_data = geojson_data
                     st.session_state.download_path = filepath
-                    st.session_state.filename = final_filename
+                    st.session_state.filename = filename
 
                     st.success("✅ Boundary successfully retrieved!")
             except Exception as e:
@@ -118,7 +114,7 @@ if st.session_state.geojson_data:
 
 st_folium(m, width=700, height=450)
 
-# Always show download button if available
+# Download button always shown if data available
 if st.session_state.download_path and os.path.exists(st.session_state.download_path):
     with open(st.session_state.download_path, 'rb') as f:
         st.download_button(
