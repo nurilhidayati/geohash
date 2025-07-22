@@ -50,42 +50,46 @@ else:
     st.error("❌ File 'batas_admin_provinsi.geojson' tidak ditemukan")
 
 # Inisialisasi session_state
-if "selected_kabupaten" not in st.session_state:
-    st.session_state.selected_kabupaten = None
-if "selected_provinsi" not in st.session_state:
-    st.session_state.selected_provinsi = None
-if "has_searched" not in st.session_state:
-    st.session_state.has_searched = False
+for key in ["selected_kabupaten", "selected_provinsi", "has_searched"]:
+    if key not in st.session_state:
+        st.session_state[key] = None if key != "has_searched" else False
 
-# Setup kolom dan dropdown
+# Dropdown
 col1, col2 = st.columns([1, 1])
 
 with col1:
     selected_kabupaten = "-- Pilih Kabupaten --"
     if kab_geojson:
         kabupaten_list = sorted({f["properties"].get("WADMKK") for f in kab_geojson["features"] if f["properties"].get("WADMKK")})
-        selected_kabupaten = st.selectbox("🏙️ Pilih Kabupaten (WADMKK):", ["-- Pilih Kabupaten --"] + kabupaten_list)
+        selected_kabupaten = st.selectbox(
+            "🏙️ Pilih Kabupaten (WADMKK):",
+            ["-- Pilih Kabupaten --"] + kabupaten_list
+        )
 
 with col2:
     selected_provinsi = "-- Pilih Provinsi --"
     if prov_geojson:
         provinsi_list = sorted({f["properties"].get("PROVINSI") for f in prov_geojson["features"] if f["properties"].get("PROVINSI")})
-        selected_provinsi = st.selectbox("🏞️ Pilih Provinsi (PROVINSI):", ["-- Pilih Provinsi --"] + provinsi_list)
+        selected_provinsi = st.selectbox(
+            "🏞️ Pilih Provinsi (PROVINSI):",
+            ["-- Pilih Provinsi --"] + provinsi_list
+        )
 
 # Tombol cari
 if st.button("🔍 Cari"):
-    st.session_state.has_searched = True
     if selected_kabupaten != "-- Pilih Kabupaten --":
         st.session_state.selected_kabupaten = selected_kabupaten
         st.session_state.selected_provinsi = None
+        st.session_state.has_searched = True
     elif selected_provinsi != "-- Pilih Provinsi --":
-        st.session_state.selected_kabupaten = None
         st.session_state.selected_provinsi = selected_provinsi
+        st.session_state.selected_kabupaten = None
+        st.session_state.has_searched = True
     else:
         st.warning("Silakan pilih salah satu: kabupaten **atau** provinsi")
         st.session_state.has_searched = False
 
-# Tampilkan hasil pencarian jika sudah dicari
+# Tampilkan hasil pencarian
 if st.session_state.has_searched:
     if st.session_state.selected_kabupaten:
         filtered_kab = [
