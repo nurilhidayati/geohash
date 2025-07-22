@@ -164,19 +164,25 @@ if uploaded_file:
         csv_data = df_forecast.to_csv(index=False)
 
         # === Download Buttons ===
-        st.download_button(
-            label="📥 Download Forecast Excel",
-            data=output_excel,
-            file_name="forecast_budget.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        # === Download Buttons Sejajar ===
+        col1, col2 = st.columns(2)
 
-        st.download_button(
-            label="📥 Download Forecast CSV",
-            data=csv_data,  # ✅ Use string, not StringIO
-            file_name="forecast_budget.csv",
-            mime="text/csv"
-        )
+        with col1:
+            st.download_button(
+                label="📥 Download Forecast Excel",
+                data=output_excel,
+                file_name="forecast_budget.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+        with col2:
+            st.download_button(
+                label="📥 Download Forecast CSV",
+                data=csv_data,
+                file_name="forecast_budget.csv",
+                mime="text/csv"
+            )
+
     else:
         st.error("⚠️ Kolom CSV harus memiliki: city, target_km, dax_number, month_estimation")
 
