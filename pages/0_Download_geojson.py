@@ -24,7 +24,7 @@ def get_bounds_from_geojson(geojson):
 
 # Setup
 st.set_page_config(layout="wide")
-st.title("🗺️ Boundary Explorer")
+st.title("🗺️ Download Boundary")
 
 # Siapkan default map
 m = folium.Map(location=[-2.5, 117.5], zoom_start=5)
@@ -50,7 +50,7 @@ else:
     st.error("❌ File 'batas_admin_provinsi.geojson' tidak ditemukan")
 
 # Inisialisasi session_state
-for key in ["selected_kabupaten", "selected_provinsi", "has_searched"]:
+for key in ["selected_kabupaten", "selected_provinsi", "has_searched", "filtered_result", "filename_result"]:
     if key not in st.session_state:
         st.session_state[key] = None if key != "has_searched" else False
 
@@ -89,7 +89,7 @@ if st.button("🔍 Cari"):
         st.warning("Silakan pilih salah satu: kabupaten **atau** provinsi")
         st.session_state.has_searched = False
 
-# Tampilkan hasil pencarian
+# Tampilkan hasil pencarian & simpan hasil ke state
 if st.session_state.has_searched:
     if st.session_state.selected_kabupaten:
         filtered_kab = [
@@ -100,6 +100,8 @@ if st.session_state.has_searched:
         folium.GeoJson(kab_geo, name="Kabupaten").add_to(m)
         if filtered_kab:
             m.fit_bounds(get_bounds_from_geojson(kab_geo))
+        st.session_state.filtered_result = json.dumps(kab_geo, ensure_ascii=False, indent=2)
+        st.session_state.filename_result = f"{st.session_state.selected_kabupaten}_boundary.geojson"
 
     elif st.session_state.selected_provinsi:
         filtered_prov = [
@@ -114,9 +116,20 @@ if st.session_state.has_searched:
         ).add_to(m)
         if filtered_prov:
             m.fit_bounds(get_bounds_from_geojson(prov_geo))
+        st.session_state.filtered_result = json.dumps(prov_geo, ensure_ascii=False, indent=2)
+        st.session_state.filename_result = f"{st.session_state.selected_provinsi}_boundary.geojson"
 
 # Tampilkan map
 st_folium(m, width=1200, height=600)
+
+# Tombol Download
+if st.session_state.filtered_result:
+    st.download_button(
+        label="⬇️ Download Hasil GeoJSON",
+        data=st.session_state.filtered_result,
+        file_name=st.session_state.filename_result,
+        mime="application/geo+json"
+    )
 
 # Footer
 st.markdown(
