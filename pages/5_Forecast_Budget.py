@@ -2,10 +2,9 @@ import streamlit as st
 import pandas as pd
 import requests
 
-# --- CURRENCY EXCHANGE FUNCTION ---
+
 @st.cache_data(ttl=3600)
 def get_exchange_rates():
-    """Get current exchange rates from API"""
     try:
         response = requests.get("https://api.exchangerate-api.com/v4/latest/USD")
         response.raise_for_status()
@@ -107,20 +106,19 @@ st.markdown("""
 
 # --- TITLE & RATE ---
 st.markdown('<div class="title">📊 Forecast Budget Estimator</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Prediksi anggaran berdasarkan target KM, jumlah DAX, dan durasi</div>', unsafe_allow_html=True)
 
 exchange_rate = get_usd_to_idr_rate()
-st.info(f"💱 Kurs saat ini: 1 USD = Rp {exchange_rate:,.0f}")
+st.info(f"💱 Current Exchange Rate: 1 USD = Rp {exchange_rate:,.0f}")
 
 # --- BULK FORECAST ---
-st.subheader("📂 Bulk Forecast dari CSV")
-uploaded_file = st.file_uploader("Unggah file CSV (target_km, dax_number, month_estimation)", type=["csv"])
+st.subheader("📂 Bulk Forecast from CSV")
+uploaded_file = st.file_uploader("Upload CSV file (target_km, dax_number, month_estimation)", type=["csv"])
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
     required_cols = {'target_km', 'dax_number', 'month_estimation'}
     if required_cols.issubset(df.columns):
-        st.success("✅ File berhasil dibaca.")
+        st.success("✅ File successfully uploaded and read.")
         for idx, row in df.iterrows():
             result = forecast_budget(
                 target_km=float(row['target_km']),
@@ -137,24 +135,24 @@ if uploaded_file:
                 else:
                     st.markdown(f'<div class="result-box"><strong>{key}:</strong> Rp {value:,.0f}</div>', unsafe_allow_html=True)
     else:
-        st.error("⚠️ CSV tidak memiliki semua kolom yang dibutuhkan!")
+        st.error("⚠️ CSV file is missing required columns!")
 
 # --- MANUAL INPUT ---
-st.subheader("🧮 Hitung Manual")
+st.subheader("🧮 Manual Calculation")
 with st.form("forecast_form"):
     st.header("🔧 Input Parameters")
     col1, col2 = st.columns(2)
     with col1:
         target_km = st.number_input("📏 Total Target KM", min_value=0.0, value=0.0, step=100.0)
-        dax_number = st.number_input("👷 Jumlah DAX", min_value=1, value=1, step=1)
+        dax_number = st.number_input("👷 Number of DAX", min_value=1, value=1, step=1)
     with col2:
-        month_estimation = st.number_input("🗓️ Estimasi Bulan", min_value=0.1, value=1.0, step=0.1, format="%.1f")
+        month_estimation = st.number_input("🗓️ Duration (months)", min_value=0.1, value=1.0, step=0.1, format="%.1f")
 
-    submitted = st.form_submit_button("🧮 Hitung Budget")
+    submitted = st.form_submit_button("🧮 Calculate Budget")
 
 if submitted:
     result = forecast_budget(target_km, dax_number, month_estimation, exchange_rate=exchange_rate)
-    st.markdown("### 📑 Hasil Perhitungan:")
+    st.markdown("### 📑 Forecast Results:")
     for key, value in result.items():
         if "Month" in key:
             st.markdown(f'<div class="result-box"><strong>{key}:</strong> {value} bulan</div>', unsafe_allow_html=True)
