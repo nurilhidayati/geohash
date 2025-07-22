@@ -5,6 +5,7 @@ import tempfile
 import osm2geojson
 import folium
 from streamlit_folium import st_folium
+import os
 
 
 def download_boundary_geojson(area_name, save_as='boundary.geojson'):
@@ -28,10 +29,8 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     if 'elements' not in data or len(data['elements']) == 0:
         raise ValueError(f"No boundary data found for '{area_name}'.")
 
-    # Convert to GeoJSON
     geojson = osm2geojson.json2geojson(data)
 
-    # Filter polygon features
     features = [feat for feat in geojson['features']
                 if feat['geometry']['type'] in ['Polygon', 'MultiPolygon']]
 
@@ -52,12 +51,16 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
 # --- Streamlit UI ---
 st.header("🌍 Download Area Boundary as GeoJSON")
 
+# Initialize session_state
+if "geojson_data" not in st.session_state:
+    st.session_state.geojson_data = None
+if "download_path" not in st.session_state:
+    st.session_state.download_path = ""
+if "filename" not in st.session_state:
+    st.session_state.filename = ""
+
 area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
 custom_filename = st.text_input("Optional: Enter output filename (e.g., jakarta_boundary.geojson)")
-
-# Default map location
-map_location = [-2.5, 117.5]  # Center of Indonesia
-geojson_data = None  # placeholder
 
 if st.button("Download Boundary"):
     if not area_name.strip():
@@ -67,34 +70,45 @@ if st.button("Download Boundary"):
             try:
                 final_filename = custom_filename.strip() or f"{area_name.replace(' ', '_')}_boundary.geojson"
 
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmpfile:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson", mode='w') as tmpfile:
                     geojson_data, filepath = download_boundary_geojson(area_name, save_as=tmpfile.name)
 
-                    # Get center of first feature for map
-                    coords = geojson_data['features'][0]['geometry']['coordinates']
-                    if geojson_data['features'][0]['geometry']['type'] == 'Polygon':
-                        lon, lat = coords[0][0]
-                    else:  # MultiPolygon
-                        lon, lat = coords[0][0][0]
-                    map_location = [lat, lon]
+                    # Save to session state
+                    st.session_state.geojson_data = geojson_data
+                    st.session_state.download_path = filepath
+                    st.session_state.filename = final_filename
 
-                    with open(filepath, 'rb') as f:
-                        st.success("✅ Boundary ready. Click below to download:")
-                        st.download_button(
-                            label="⬇️ Download GeoJSON",
-                            data=f,
-                            file_name=final_filename,
-                            mime="application/geo+json"
-                        )
+                    st.success("✅ Boundary successfully retrieved!")
             except Exception as e:
                 st.error(str(e))
 
-# Always show map
+# Map preview
 st.subheader("🗺️ Map Preview")
 
+map_location = [-2.5, 117.5]  # default center of Indonesia
 m = folium.Map(location=map_location, zoom_start=5)
 
-if geojson_data:
-    folium.GeoJson(geojson_data, name="Boundary").add_to(m)
+if st.session_state.geojson_data:
+    geojson = st.session_state.geojson_data
+    coords = geojson['features'][0]['geometry']['coordinates']
+    if geojson['features'][0]['geometry']['type'] == 'Polygon':
+        lon, lat = coords[0][0]
+    else:
+        lon, lat = coords[0][0][0]
+
+    # Update map location
+    m.location = [lat, lon]
+    m.zoom_start = 10
+    folium.GeoJson(geojson, name="Boundary").add_to(m)
 
 st_folium(m, width=700, height=450)
+
+# Always show download button if available
+if st.session_state.download_path and os.path.exists(st.session_state.download_path):
+    with open(st.session_state.download_path, 'rb') as f:
+        st.download_button(
+            label="⬇️ Download GeoJSON",
+            data=f,
+            file_name=st.session_state.filename,
+            mime="application/geo+json"
+        )
