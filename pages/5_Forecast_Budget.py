@@ -1,6 +1,10 @@
 import streamlit as st
 import requests
 import pandas as pd
+import openpyxl
+from openpyxl.utils.dataframe import dataframe_to_rows
+from io import BytesIO
+
 
 # === PAGE CONFIG ===
 st.set_page_config(page_title="💱 Forecast & Currency Converter", layout="centered")
