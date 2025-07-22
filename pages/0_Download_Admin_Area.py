@@ -6,10 +6,12 @@ import osm2geojson
 
 def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geojson'):
     """
-    Downloads administrative boundaries from OSM by name and filters by admin_level in Python.
+    Downloads administrative boundaries from OSM by name, filters by admin_level.
+    Accepts fuzzy names like 'Jawa Barat' (no ', Indonesia').
     """
     overpass_url = "https://overpass-api.de/api/interpreter"
 
+    # Ambil semua relasi dengan nama sesuai
     query = f"""
     [out:json][timeout:25];
     (
@@ -26,12 +28,12 @@ def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geo
 
     data = response.json()
     if 'elements' not in data or len(data['elements']) == 0:
-        raise ValueError(f"No data found for '{area_name}'.")
+        raise ValueError(f"No OSM relation found for '{area_name}'.")
 
     # Convert to GeoJSON
     geojson = osm2geojson.json2geojson(data)
 
-    # Filter features with correct admin_level
+    # Filter features by geometry and admin_level
     features = []
     for feat in geojson['features']:
         props = feat.get('properties', {})
@@ -39,7 +41,7 @@ def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geo
         if geom_type not in ['Polygon', 'MultiPolygon']:
             continue
         if admin_level:
-            if props.get("admin_level") == admin_level:
+            if props.get("admin_level") == str(admin_level):
                 features.append(feat)
         else:
             features.append(feat)
@@ -61,7 +63,7 @@ def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geo
 # --- Streamlit UI ---
 st.header("🌍 Download Area Boundary as GeoJSON")
 
-area_name = st.text_input("Enter area name (e.g., Bandung, Sleman, Yogyakarta)")
+area_name = st.text_input("Enter area name (e.g., Jawa Barat, Sleman, Yogyakarta)")
 
 admin_options = {
     "All levels": None,
@@ -83,7 +85,11 @@ if st.button("Download Boundary"):
                 final_filename = custom_filename.strip() or f"{area_name.replace(' ', '_')}_boundary.geojson"
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmpfile:
-                    geojson_data, filepath = download_boundary_geojson(area_name, admin_level=admin_level, save_as=tmpfile.name)
+                    geojson_data, filepath = download_boundary_geojson(
+                        area_name=area_name.strip(),
+                        admin_level=admin_level,
+                        save_as=tmpfile.name
+                    )
 
                     with open(filepath, 'rb') as f:
                         st.success("✅ Boundary ready. Click below to download:")
