@@ -156,7 +156,7 @@ if uploaded_file:
         df_forecast = pd.DataFrame(forecast_results)
 
         # === Load template Excel and append ===
-        path_template = "/mnt/data/forecast_budget.xlsx"
+        path_template = "/pages/forecast_budget.xlsx"
         wb = openpyxl.load_workbook(path_template)
         ws = wb.active
 
