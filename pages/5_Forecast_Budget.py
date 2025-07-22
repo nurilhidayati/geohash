@@ -115,15 +115,21 @@ def forecast_budget(target_km, dax_number, month_estimation,
         "Total Forecast Budget": round(total_forecast),
         "Total Forecast Budget (USD)": round(total_forecast_usd, 2)
     }
+import openpyxl
+from openpyxl.utils.dataframe import dataframe_to_rows
+from io import BytesIO
 
 # === BULK FORECAST ===
 st.subheader("📂 Bulk Forecast from CSV")
-uploaded_file = st.file_uploader("Upload CSV (target_km, dax_number, month_estimation)", type=["csv"])
+uploaded_file = st.file_uploader("Upload CSV (city, target_km, dax_number, month_estimation)", type=["csv"])
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
-    required_cols = {'target_km', 'dax_number', 'month_estimation'}
+    required_cols = {'city', 'target_km', 'dax_number', 'month_estimation'}
     if required_cols.issubset(df.columns):
         st.success("✅ File loaded.")
+
+        # List untuk menyimpan hasil forecast
+        forecast_results = []
         for idx, row in df.iterrows():
             result = forecast_budget(
                 target_km=row['target_km'],
@@ -131,16 +137,42 @@ if uploaded_file:
                 month_estimation=row['month_estimation'],
                 exchange_rate=rates["usd_to_idr"]
             )
-            st.markdown(f"#### 🔹 Baris ke-{idx + 1}")
-            for key, value in result.items():
-                if "USD" in key:
-                    st.markdown(f'<div class="result-box"><strong>{key}:</strong> ${value:,.2f}</div>', unsafe_allow_html=True)
-                elif "Month" in key:
-                    st.markdown(f'<div class="result-box"><strong>{key}:</strong> {value} bulan</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown(f'<div class="result-box"><strong>{key}:</strong> Rp {value:,.0f}</div>', unsafe_allow_html=True)
+            forecast_results.append({
+                "City": row['city'],
+                "UKM Target": row['target_km'],
+                "Basic Incentive": result["Basic Incentive"],
+                ">95% Bonus Coverage": result[">95% Bonus Coverage"],
+                "Insurance": result["Insurance"],
+                "Data Plan": result["Dataplan"],
+                "Miscellaneous (5%)": result["Miscellaneous (5%)"],
+                "Estimation Incentive (IDR)": result["Total Forecast Budget"],
+                "Estimation Incentive (USD)": result["Total Forecast Budget (USD)"]
+            })
+
+        df_forecast = pd.DataFrame(forecast_results)
+
+        # === Load template Excel and append ===
+        path_template = "/mnt/data/forecast_budget.xlsx"
+        wb = openpyxl.load_workbook(path_template)
+        ws = wb.active
+
+        for r in dataframe_to_rows(df_forecast, index=False, header=False):
+            ws.append(r)
+
+        output_excel = BytesIO()
+        wb.save(output_excel)
+
+        st.success("✅ Forecast berhasil dimasukkan ke Excel!")
+
+        st.download_button(
+            label="📥 Download Forecast Excel",
+            data=output_excel.getvalue(),
+            file_name="forecast_budget_filled.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
     else:
-        st.error("⚠️ Missing columns in CSV.")
+        st.error("⚠️ Kolom CSV harus memiliki: city, target_km, dax_number, month_estimation")
+
 
 # === MANUAL INPUT FORECAST ===
 st.subheader("🧮 Manual Forecast Calculator")
