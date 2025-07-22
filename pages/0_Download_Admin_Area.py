@@ -6,7 +6,7 @@ import osm2geojson
 
 def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     """
-    Downloads administrative boundary polygons only as GeoJSON using Overpass API.
+    Downloads administrative boundary polygons (excluding admin_level=4) as GeoJSON using Overpass API.
     """
     overpass_url = "https://overpass-api.de/api/interpreter"
     query = f"""
@@ -31,12 +31,15 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     # Convert to GeoJSON
     geojson = osm2geojson.json2geojson(data)
 
-    # Filter to only Polygon or MultiPolygon features
-    features = [feat for feat in geojson['features']
-                if feat['geometry']['type'] in ['Polygon', 'MultiPolygon']]
+    # Filter to only Polygon/MultiPolygon and exclude admin_level=4
+    features = [
+        feat for feat in geojson['features']
+        if feat['geometry']['type'] in ['Polygon', 'MultiPolygon']
+        and feat['properties'].get('admin_level') != '4'
+    ]
 
     if not features:
-        raise ValueError(f"No polygon boundaries found for '{area_name}'.")
+        raise ValueError(f"No polygon boundaries (excluding admin_level=4) found for '{area_name}'.")
 
     geojson_filtered = {
         "type": "FeatureCollection",
@@ -50,7 +53,7 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
 
 
 # --- Streamlit UI ---
-st.header("🌍 Download Area Boundary as GeoJSON")
+st.header("🌍 Download Area Boundary as GeoJSON (Excluding admin_level=4)")
 
 area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
 custom_filename = st.text_input("Optional: Enter output filename (e.g., jakarta_boundary.geojson)")
