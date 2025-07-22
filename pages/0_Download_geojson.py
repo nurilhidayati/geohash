@@ -22,7 +22,7 @@ def get_bounds_from_geojson(geojson):
                 bounds[1][1] = max(bounds[1][1], lon)
     return bounds
 
-
+# Setup
 st.set_page_config(layout="wide")
 st.title("🗺️ Boundary Explorer")
 
@@ -49,52 +49,72 @@ if os.path.exists(prov_file):
 else:
     st.error("❌ File 'batas_admin_provinsi.geojson' tidak ditemukan")
 
+# Inisialisasi session_state
+if "selected_kabupaten" not in st.session_state:
+    st.session_state.selected_kabupaten = None
+if "selected_provinsi" not in st.session_state:
+    st.session_state.selected_provinsi = None
+if "has_searched" not in st.session_state:
+    st.session_state.has_searched = False
+
 # Setup kolom dan dropdown
 col1, col2 = st.columns([1, 1])
 
-selected_kabupaten = None
-selected_provinsi = None
-
 with col1:
+    selected_kabupaten = "-- Pilih Kabupaten --"
     if kab_geojson:
         kabupaten_list = sorted({f["properties"].get("WADMKK") for f in kab_geojson["features"] if f["properties"].get("WADMKK")})
         selected_kabupaten = st.selectbox("🏙️ Pilih Kabupaten (WADMKK):", ["-- Pilih Kabupaten --"] + kabupaten_list)
 
 with col2:
+    selected_provinsi = "-- Pilih Provinsi --"
     if prov_geojson:
         provinsi_list = sorted({f["properties"].get("PROVINSI") for f in prov_geojson["features"] if f["properties"].get("PROVINSI")})
         selected_provinsi = st.selectbox("🏞️ Pilih Provinsi (PROVINSI):", ["-- Pilih Provinsi --"] + provinsi_list)
 
 # Tombol cari
-search = st.button("🔍 Cari")
+if st.button("🔍 Cari"):
+    st.session_state.has_searched = True
+    if selected_kabupaten != "-- Pilih Kabupaten --":
+        st.session_state.selected_kabupaten = selected_kabupaten
+        st.session_state.selected_provinsi = None
+    elif selected_provinsi != "-- Pilih Provinsi --":
+        st.session_state.selected_kabupaten = None
+        st.session_state.selected_provinsi = selected_provinsi
+    else:
+        st.warning("Silakan pilih salah satu: kabupaten **atau** provinsi")
+        st.session_state.has_searched = False
 
-# Logika jika tombol diklik
-if search:
-    # Jika kabupaten dipilih, reset provinsi
-    if selected_kabupaten and selected_kabupaten != "-- Pilih Kabupaten --":
-        selected_provinsi = None
-
-        filtered_kab = [f for f in kab_geojson["features"] if f["properties"].get("WADMKK") == selected_kabupaten]
+# Tampilkan hasil pencarian jika sudah dicari
+if st.session_state.has_searched:
+    if st.session_state.selected_kabupaten:
+        filtered_kab = [
+            f for f in kab_geojson["features"]
+            if f["properties"].get("WADMKK") == st.session_state.selected_kabupaten
+        ]
         kab_geo = {"type": "FeatureCollection", "features": filtered_kab}
         folium.GeoJson(kab_geo, name="Kabupaten").add_to(m)
         if filtered_kab:
             m.fit_bounds(get_bounds_from_geojson(kab_geo))
 
-    # Jika provinsi dipilih, reset kabupaten
-    elif selected_provinsi and selected_provinsi != "-- Pilih Provinsi --":
-        selected_kabupaten = None
-
-        filtered_prov = [f for f in prov_geojson["features"] if f["properties"].get("PROVINSI") == selected_provinsi]
+    elif st.session_state.selected_provinsi:
+        filtered_prov = [
+            f for f in prov_geojson["features"]
+            if f["properties"].get("PROVINSI") == st.session_state.selected_provinsi
+        ]
         prov_geo = {"type": "FeatureCollection", "features": filtered_prov}
-        folium.GeoJson(prov_geo, name="Provinsi", style_function=lambda x: {"color": "green", "weight": 2}).add_to(m)
+        folium.GeoJson(
+            prov_geo,
+            name="Provinsi",
+            style_function=lambda x: {"color": "green", "weight": 2}
+        ).add_to(m)
         if filtered_prov:
             m.fit_bounds(get_bounds_from_geojson(prov_geo))
-    else:
-        st.warning("Silakan pilih salah satu: kabupaten **atau** provinsi")
 
 # Tampilkan map
 st_folium(m, width=1200, height=600)
 
+# Footer
 st.markdown(
     """
     <hr style="margin-top: 2rem; margin-bottom: 1rem;">
