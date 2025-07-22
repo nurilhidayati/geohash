@@ -1,60 +1,71 @@
 import streamlit as st
 import pandas as pd
 
-# Set page config
+# Page config
 st.set_page_config(page_title="Forecast Budget Estimator", layout="centered")
 
-# Dark mode CSS
-st.markdown(
-    """
+# Custom CSS styling
+st.markdown("""
     <style>
     body {
-        background-color: #111111;
+        background-color: #0f1116;
         color: white;
+        font-family: 'Segoe UI', sans-serif;
     }
     .title {
         text-align: center;
-        font-size: 32px;
+        font-size: 38px;
         font-weight: bold;
-        color: #F1C40F;
+        color: #f1c40f;
+        margin-top: 20px;
         margin-bottom: 10px;
     }
     .subtitle {
         text-align: center;
         font-size: 18px;
-        color: #BDC3C7;
+        color: #95a5a6;
         margin-bottom: 30px;
     }
     .result-box {
-        background-color: #1e1e1e;
-        border: 1px solid #444;
+        background: #1e1e2f;
+        border: 1px solid #2e2e3e;
         border-radius: 12px;
         padding: 16px;
-        margin-bottom: 10px;
-        color: white;
+        margin-bottom: 12px;
+        color: #ecf0f1;
+        transition: 0.3s ease-in-out;
+    }
+    .result-box:hover {
+        background: #2c2c40;
+        border-color: #f1c40f;
     }
     label, .stNumberInput label, .stTextInput label {
-        color: white !important;
+        color: #ecf0f1 !important;
     }
     .stButton button {
-        background-color: #F1C40F;
+        background-color: #f1c40f;
         color: black;
         font-weight: bold;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    .stButton button:hover {
+        background-color: #f39c12;
+        color: white;
     }
     </style>
-    """,
-    unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
+
+# Title
+st.markdown('<div class="title">📊 Forecast Budget Estimator</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Prediksi anggaran berdasarkan target KM, jumlah DAX, dan durasi</div>', unsafe_allow_html=True)
 
 # Forecast function
-def forecast_budget(
-    target_km: float,
-    dax_number: int,
-    month_estimation: float,
-    harga_ukm: float = 8000,
-    insurance_per_dax_per_month: int = 132200,
-    dataplan_per_dax_per_month: int = 450000
-):
+def forecast_budget(target_km, dax_number, month_estimation,
+                    harga_ukm=8000,
+                    insurance_per_dax_per_month=132200,
+                    dataplan_per_dax_per_month=450000):
+
     basic_incentive = target_km * harga_ukm
     bonus_coverage = target_km * harga_ukm
     insurance = insurance_per_dax_per_month * dax_number * month_estimation
@@ -73,10 +84,7 @@ def forecast_budget(
         "Total Forecast Budget": round(total_forecast)
     }
 
-# Title
-st.markdown('<div class="title">📊 Forecast Budget Estimator</div>', unsafe_allow_html=True)
-
-# Upload CSV for Bulk Forecast
+# --- BULK FORECAST ---
 st.subheader("📂 Bulk Forecast dari CSV")
 uploaded_file = st.file_uploader("Unggah file CSV (dengan kolom: target_km, dax_number, month_estimation)", type=["csv"])
 
@@ -102,7 +110,7 @@ if uploaded_file:
     else:
         st.error("⚠️ CSV tidak memiliki semua kolom yang dibutuhkan!")
 
-# Manual Input Form
+# --- MANUAL INPUT ---
 st.subheader("🧮 Hitung Manual")
 with st.form("forecast_form"):
     st.header("🔧 Input Parameters")
@@ -112,7 +120,7 @@ with st.form("forecast_form"):
         dax_number = st.number_input("👷 Jumlah DAX", min_value=1, value=1, step=1)
     with col2:
         month_estimation = st.number_input("🗓️ Estimasi Bulan", min_value=0.1, value=1.0, step=0.1, format="%.1f")
-
+    
     submitted = st.form_submit_button("🧮 Hitung Budget")
 
 if submitted:
