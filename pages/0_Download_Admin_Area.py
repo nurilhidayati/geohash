@@ -6,19 +6,15 @@ import osm2geojson
 
 def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geojson'):
     """
-    Downloads administrative boundary polygons as GeoJSON using Overpass API.
-    Can be filtered by admin_level (e.g., 4=provinsi, 6=kabupaten, 8=kecamatan).
+    Downloads administrative boundary polygons directly by relation name and admin_level using Overpass API.
     """
     overpass_url = "https://overpass-api.de/api/interpreter"
-
-    # Build admin level filter
     admin_filter = f'["admin_level"="{admin_level}"]' if admin_level else ""
 
     query = f"""
     [out:json][timeout:25];
-    area["name"="{area_name}"]->.searchArea;
     (
-      relation["boundary"="administrative"]{admin_filter}(area.searchArea);
+      relation["boundary"="administrative"]{admin_filter}["name"="{area_name}"];
     );
     out body;
     >;
@@ -58,7 +54,7 @@ def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geo
 st.header("🌍 Download Area Boundary as GeoJSON")
 
 # Input area name
-area_name = st.text_input("Enter area name (e.g., Jawa Barat, Jakarta, Sleman)")
+area_name = st.text_input("Enter area name (e.g., Kota Bandung, Kabupaten Sleman, Jakarta)")
 
 # Admin level dropdown
 admin_options = {
