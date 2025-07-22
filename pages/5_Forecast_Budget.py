@@ -76,41 +76,20 @@ rates = get_exchange_rates()
 st.info(f"💸 **Exchange Rate:** 1 USD = Rp {rates['usd_to_idr']:,.0f} (Last updated: {rates['last_updated']})")
 
 # === CURRENCY CONVERTER ===
-st.markdown("---")
-st.markdown('<h3 style="color:#f1c40f;">🔄 Currency Converter</h3>', unsafe_allow_html=True)
+st.subheader("🔄 Currency Converter")
 
-st.markdown("""
-<style>
-.radio-label {
-    font-size: 18px;
-    font-weight: 600;
-    color: white;
-    margin-bottom: 8px;
-}
-.input-label {
-    font-size: 16px;
-    color: #dddddd;
-}
-</style>
-""", unsafe_allow_html=True)
+conversion_direction = st.radio("Choose conversion direction:", ("IDR to USD", "USD to IDR"))
 
-st.markdown('<div class="radio-label">🧭 Choose conversion direction:</div>', unsafe_allow_html=True)
-
-conversion_direction = st.radio("", ("🇮🇩 IDR ➡️ USD", "💵 USD ➡️ IDR"))
-
-if conversion_direction == "🇮🇩 IDR ➡️ USD":
-    st.markdown('<div class="input-label">💰 Enter amount in Rupiah (IDR):</div>', unsafe_allow_html=True)
-    idr = st.number_input("", min_value=0.0, step=1000.0, format="%.2f", key="idr_input")
+if conversion_direction == "IDR to USD":
+    idr = st.number_input("Enter amount in Rupiah (IDR):", min_value=0.0, step=1000.0)
     if idr > 0:
         usd = idr * rates["idr_to_usd"]
-        st.success(f"✅ {format_currency(idr, 'IDR')} = {format_currency(usd, 'USD')}")
+        st.success(f"{format_currency(idr, 'IDR')} = {format_currency(usd, 'USD')}")
 else:
-    st.markdown('<div class="input-label">💵 Enter amount in USD:</div>', unsafe_allow_html=True)
-    usd = st.number_input("", min_value=0.0, step=10.0, format="%.2f", key="usd_input")
+    usd = st.number_input("Enter amount in USD:", min_value=0.0, step=10.0)
     if usd > 0:
         idr = usd * rates["usd_to_idr"]
-        st.success(f"✅ {format_currency(usd, 'USD')} = {format_currency(idr, 'IDR')}")
-
+        st.success(f"{format_currency(usd, 'USD')} = {format_currency(idr, 'IDR')}")
 
 # === FORECAST FUNCTION ===
 def forecast_budget(target_km, dax_number, month_estimation,
