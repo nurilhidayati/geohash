@@ -5,12 +5,11 @@ import requests
 # Fungsi ambil kurs USD-IDR
 @st.cache_data(ttl=3600)
 def get_usd_to_idr_rate():
-    try:
+   
         response = requests.get("https://api.exchangerate.host/latest?base=USD&symbols=IDR")
         data = response.json()
         return data["rates"]["IDR"]
-    except:
-        return 16000  # fallback default
+   
 
 # Page config
 st.set_page_config(page_title="Forecast Budget Estimator", layout="centered")
