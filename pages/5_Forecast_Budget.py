@@ -148,11 +148,23 @@ with st.form("forecast_form"):
 
 if submitted:
     result = forecast_budget(target_km, dax_number, month_estimation, exchange_rate=exchange_rate)
-    st.markdown("### 📑 Forecast Results:")
-    for key, value in result.items():
-        if "Month" in key:
-            st.markdown(f'<div class="result-box"><strong>{key}:</strong> {value} bulan</div>', unsafe_allow_html=True)
-        elif "USD" in key:
-            st.markdown(f'<div class="result-box"><strong>{key}:</strong> ${value:,.2f}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="result-box"><strong>{key}:</strong> Rp {value:,.0f}</div>', unsafe_allow_html=True)
+    bullets = ""
+for key, value in result.items():
+    if "Total Forecast Budget" in key:
+        continue
+    if "Month" in key:
+        bullets += f"- **{key}**: {value} bulan\n"
+    elif "USD" in key:
+        continue
+    else:
+        bullets += f"- **{key}**: {format_currency(value)}\n"
+st.markdown(bullets)
+
+st.markdown(
+    f"""
+    <div class="result-box">
+        <strong>Total Forecast Budget:</strong> {format_currency(result["Total Forecast Budget"])} &nbsp;&nbsp; | &nbsp;&nbsp;
+        <strong>USD:</strong> ${result["Total Forecast Budget (USD)"]:,.2f}
+    </div>
+    """, unsafe_allow_html=True
+)
