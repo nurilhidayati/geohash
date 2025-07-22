@@ -6,15 +6,14 @@ import osm2geojson
 
 def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geojson'):
     """
-    Downloads administrative boundary polygons directly by relation name and admin_level using Overpass API.
+    Downloads administrative boundaries from OSM by name and filters by admin_level in Python.
     """
     overpass_url = "https://overpass-api.de/api/interpreter"
-    admin_filter = f'["admin_level"="{admin_level}"]' if admin_level else ""
 
     query = f"""
     [out:json][timeout:25];
     (
-      relation["boundary"="administrative"]{admin_filter}["name"="{area_name}"];
+      relation["boundary"="administrative"]["name"="{area_name}"];
     );
     out body;
     >;
@@ -27,17 +26,26 @@ def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geo
 
     data = response.json()
     if 'elements' not in data or len(data['elements']) == 0:
-        raise ValueError(f"No boundary data found for '{area_name}' with admin_level={admin_level}.")
+        raise ValueError(f"No data found for '{area_name}'.")
 
     # Convert to GeoJSON
     geojson = osm2geojson.json2geojson(data)
 
-    # Filter to only Polygon or MultiPolygon features
-    features = [feat for feat in geojson['features']
-                if feat['geometry']['type'] in ['Polygon', 'MultiPolygon']]
+    # Filter features with correct admin_level
+    features = []
+    for feat in geojson['features']:
+        props = feat.get('properties', {})
+        geom_type = feat['geometry']['type']
+        if geom_type not in ['Polygon', 'MultiPolygon']:
+            continue
+        if admin_level:
+            if props.get("admin_level") == admin_level:
+                features.append(feat)
+        else:
+            features.append(feat)
 
     if not features:
-        raise ValueError(f"No polygon boundaries found for '{area_name}'.")
+        raise ValueError(f"No polygon boundaries found for '{area_name}' with admin_level={admin_level}.")
 
     geojson_filtered = {
         "type": "FeatureCollection",
@@ -53,10 +61,8 @@ def download_boundary_geojson(area_name, admin_level=None, save_as='boundary.geo
 # --- Streamlit UI ---
 st.header("🌍 Download Area Boundary as GeoJSON")
 
-# Input area name
-area_name = st.text_input("Enter area name (e.g., Kota Bandung, Kabupaten Sleman, Jakarta)")
+area_name = st.text_input("Enter area name (e.g., Bandung, Sleman, Yogyakarta)")
 
-# Admin level dropdown
 admin_options = {
     "All levels": None,
     "Provinsi (admin_level = 4)": "4",
@@ -66,10 +72,8 @@ admin_options = {
 selected_label = st.selectbox("Select administrative level", options=list(admin_options.keys()))
 admin_level = admin_options[selected_label]
 
-# Optional filename
-custom_filename = st.text_input("Optional: Enter output filename (e.g., jakarta_boundary.geojson)")
+custom_filename = st.text_input("Optional: Enter output filename (e.g., bandung_boundary.geojson)")
 
-# Button to trigger download
 if st.button("Download Boundary"):
     if not area_name.strip():
         st.warning("⚠️ Please enter an area name.")
