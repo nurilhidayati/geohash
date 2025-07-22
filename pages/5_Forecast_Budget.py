@@ -167,14 +167,14 @@ if uploaded_file:
         st.download_button(
             label="📥 Download Forecast Excel",
             data=output_excel,
-            file_name="forecast_budget_filled.xlsx",
+            file_name="forecast_budget.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
         st.download_button(
             label="📥 Download Forecast CSV",
             data=csv_data,  # ✅ Use string, not StringIO
-            file_name="forecast_budget_filled.csv",
+            file_name="forecast_budget.csv",
             mime="text/csv"
         )
     else:
