@@ -4,7 +4,6 @@ import geopandas as gpd
 import pandas as pd
 import io
 import geohash2
-import json
 from shapely.geometry import box
 
 st.set_page_config(page_title="🛣️ Calculate Target UKM", layout="wide")
@@ -12,14 +11,17 @@ st.title("🛣️ Calculate Target UKM")
 
 uploaded_file = st.file_uploader("📄 Upload GeoJSON or CSV with `geoHash` column", type=["csv", "geojson", "json"])
 
-def geohash_to_polygon(gh):
-    if len(gh) != 6:
-        raise ValueError("Geohash must be 6 characters long.")
-    lat, lon, lat_err, lon_err = geohash2.decode_exactly(gh)
-    return box(lon - lon_err, lat - lat_err, lon + lon_err, lat + lat_err)
+# Reset hasil roads saat tombol calculate ditekan
+if 'gdf_roads' not in st.session_state:
+    st.session_state['gdf_roads'] = None
 
+def geohash_to_bounds(gh):
+    lat, lon, lat_err, lon_err = geohash2.decode_exactly(gh)
+    return (lat - lat_err, lat + lat_err, lon - lon_err, lon + lon_err)
+
+@st.cache_data(show_spinner="📡 Downloading roads...", ttl=3600)
 def download_clipped_roads_from_geohashes(geohash_list):
-    all_roads = gpd.GeoDataFrame()
+    roads = []
     tags = {
         "highway": [
             "motorway", "motorway_link", "secondary", "secondary_link",
@@ -28,32 +30,32 @@ def download_clipped_roads_from_geohashes(geohash_list):
         ]
     }
 
-    for gh in geohash_list:
+    progress = st.progress(0)
+    for i, gh in enumerate(geohash_list):
         try:
-            polygon = geohash_to_polygon(gh)
-            gdf_all = ox.features_from_polygon(polygon, tags=tags)
+            south, north, west, east = geohash_to_bounds(gh)
+            polygon = box(west, south, east, north)
 
-            if gdf_all.empty:
-                st.warning(f"⚠️ No road features in geohash {gh}")
-                continue
-
+            gdf_all = ox.features_from_bbox(north, south, east, west, tags=tags)
             gdf_lines = gdf_all[gdf_all.geometry.type.isin(["LineString", "MultiLineString"])]
             gdf_clipped = gpd.clip(gdf_lines, polygon)
 
-            if gdf_clipped.empty:
-                st.warning(f"⚠️ No clipped roads inside geohash {gh}")
-                continue
+            if not gdf_clipped.empty:
+                roads.append(gdf_clipped)
+        except Exception:
+            pass
 
-            all_roads = pd.concat([all_roads, gdf_clipped])
+        progress.progress((i + 1) / len(geohash_list))
 
-        except Exception as e:
-            st.warning(f"⚠️ Failed to fetch for geohash {gh}: {e}")
-    return all_roads.reset_index(drop=True)
+    if roads:
+        return pd.concat(roads).reset_index(drop=True)
+    else:
+        return gpd.GeoDataFrame()
 
 if uploaded_file and st.button("🗂️ Calculate UKM (GeoJSON)"):
+    st.session_state['gdf_roads'] = None  # reset saat tombol calculate ditekan
     try:
         filename = uploaded_file.name.lower()
-        # Baca data berdasarkan jenis file
         if filename.endswith(".csv"):
             df = pd.read_csv(uploaded_file)
         elif filename.endswith((".geojson", ".json")):
@@ -76,6 +78,7 @@ if uploaded_file and st.button("🗂️ Calculate UKM (GeoJSON)"):
                 st.warning("⚠️ No valid 6-character geohashes found.")
             else:
                 st.info(f"🔍 Fetching clipped roads from {len(geohash_list)} geohash6 areas...")
+
                 gdf_roads = download_clipped_roads_from_geohashes(geohash_list)
 
                 if gdf_roads.empty:
@@ -88,10 +91,14 @@ if uploaded_file and st.button("🗂️ Calculate UKM (GeoJSON)"):
                     st.info(f"🧮 Total road length: **{total_length_km:.2f} km**")
 
                     gdf_roads = gdf_roads.to_crs(epsg=4326)
-                    buffer = io.BytesIO()
-                    gdf_roads.to_file(buffer, driver="GeoJSON")
-                    buffer.seek(0)
-                    st.download_button("⬇️ Download Roads", buffer, "roads_inside_geohash.geojson", "application/geo+json")
+                    st.session_state['gdf_roads'] = gdf_roads  # simpan ke session
 
     except Exception as e:
         st.error(f"❌ Unexpected error: {e}")
+
+# Tombol download muncul hanya jika sudah ada hasil
+if st.session_state['gdf_roads'] is not None:
+    buffer = io.BytesIO()
+    st.session_state['gdf_roads'].to_file(buffer, driver="GeoJSON")
+    buffer.seek(0)
+    st.download_button("⬇️ Download Roads", buffer, "roads_inside_geohash.geojson", "application/geo+json")
