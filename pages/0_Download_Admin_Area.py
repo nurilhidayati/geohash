@@ -1,3 +1,9 @@
+import streamlit as st
+import requests
+import json
+import tempfile
+import osm2geojson
+
 def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     """
     Downloads administrative boundary polygons excluding features with admin_level=4 and ISO3166-2='ID-JB'.
@@ -45,3 +51,33 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
         json.dump(geojson_filtered, f, ensure_ascii=False, indent=2)
 
     return geojson_filtered, save_as
+
+
+
+# --- Streamlit UI ---
+st.header("🌍 Download Area Boundary as GeoJSON")
+
+area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
+custom_filename = st.text_input("Optional: Enter output filename (e.g., jakarta_boundary.geojson)")
+
+if st.button("Download Boundary"):
+    if not area_name.strip():
+        st.warning("⚠️ Please enter an area name.")
+    else:
+        with st.spinner("⏳ Processing... Please wait."):
+            try:
+                final_filename = custom_filename.strip() or f"{area_name.replace(' ', '_')}_boundary.geojson"
+
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmpfile:
+                    geojson_data, filepath = download_boundary_geojson(area_name, save_as=tmpfile.name)
+
+                    with open(filepath, 'rb') as f:
+                        st.success("✅ Boundary ready. Click below to download:")
+                        st.download_button(
+                            label="⬇️ Download GeoJSON",
+                            data=f,
+                            file_name=final_filename,
+                            mime="application/geo+json"
+                        )
+            except Exception as e:
+                st.error(str(e))
