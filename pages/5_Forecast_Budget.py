@@ -51,13 +51,11 @@ conversion_direction = st.radio(
     ("IDR to USD", "USD to IDR")
 )
 
-# Input fields
-amount = st.number_input(
-    f"Enter amount in {'Rupiah (IDR)' if conversion_direction == 'IDR to USD' else 'USD'}:",
-    min_value=0.0,
-    step=1000.0 if conversion_direction == "IDR to USD" else 10.0,
-    format="%.2f"
-)
+# Input field with integer only
+if conversion_direction == "IDR to USD":
+    amount = st.number_input("Enter amount in Rupiah (IDR):", min_value=0, step=1000, value=0)
+else:
+    amount = st.number_input("Enter amount in USD:", min_value=0, step=1, value=0)
 
 # Convert button
 if st.button("Convert"):
@@ -65,12 +63,11 @@ if st.button("Convert"):
         st.warning("Please enter a positive amount.")
     else:
         if conversion_direction == "IDR to USD":
-            converted = amount * rates["idr_to_usd"]
+            converted = int(amount * rates["idr_to_usd"])
             st.success(f"{format_currency(amount, 'IDR')} = {format_currency(converted, 'USD')}")
         else:  # USD to IDR
-            converted = amount * rates["usd_to_idr"]
+            converted = int(amount * rates["usd_to_idr"])
             st.success(f"{format_currency(amount, 'USD')} = {format_currency(converted, 'IDR')}")
-
 
 # --- FORECAST FUNCTION ---
 def forecast_budget(target_km, dax_number, month_estimation,
