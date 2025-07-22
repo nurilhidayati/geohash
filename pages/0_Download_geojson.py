@@ -84,4 +84,13 @@ if search:
     elif selected_provinsi and selected_provinsi != "-- Pilih Provinsi --":
         selected_kabupaten = None
 
-        filtered_prov_
+        filtered_prov = [f for f in prov_geojson["features"] if f["properties"].get("PROVINSI") == selected_provinsi]
+        prov_geo = {"type": "FeatureCollection", "features": filtered_prov}
+        folium.GeoJson(prov_geo, name="Provinsi", style_function=lambda x: {"color": "green", "weight": 2}).add_to(m)
+        if filtered_prov:
+            m.fit_bounds(get_bounds_from_geojson(prov_geo))
+    else:
+        st.warning("Silakan pilih salah satu: kabupaten **atau** provinsi")
+
+# Tampilkan map
+st_folium(m, width=1200, height=600)
