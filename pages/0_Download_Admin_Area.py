@@ -55,6 +55,10 @@ st.header("🌍 Download Area Boundary as GeoJSON")
 area_name = st.text_input("Enter area name (e.g., Jakarta, Yogyakarta, etc.)")
 custom_filename = st.text_input("Optional: Enter output filename (e.g., jakarta_boundary.geojson)")
 
+# Default map location
+map_location = [-2.5, 117.5]  # Center of Indonesia
+geojson_data = None  # placeholder
+
 if st.button("Download Boundary"):
     if not area_name.strip():
         st.warning("⚠️ Please enter an area name.")
@@ -66,19 +70,13 @@ if st.button("Download Boundary"):
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmpfile:
                     geojson_data, filepath = download_boundary_geojson(area_name, save_as=tmpfile.name)
 
-                    # Calculate map center from first polygon coordinates
+                    # Get center of first feature for map
                     coords = geojson_data['features'][0]['geometry']['coordinates']
-                    # Flatten to get representative coordinate for center
                     if geojson_data['features'][0]['geometry']['type'] == 'Polygon':
                         lon, lat = coords[0][0]
                     else:  # MultiPolygon
                         lon, lat = coords[0][0][0]
-
-                    # Show boundary map centered
-                    st.subheader("🗺️ Preview Boundary on Map")
-                    m = folium.Map(location=[lat, lon], zoom_start=10)
-                    folium.GeoJson(geojson_data, name="Boundary").add_to(m)
-                    st_folium(m, width=700, height=450)
+                    map_location = [lat, lon]
 
                     with open(filepath, 'rb') as f:
                         st.success("✅ Boundary ready. Click below to download:")
@@ -90,3 +88,13 @@ if st.button("Download Boundary"):
                         )
             except Exception as e:
                 st.error(str(e))
+
+# Always show map
+st.subheader("🗺️ Map Preview")
+
+m = folium.Map(location=map_location, zoom_start=5)
+
+if geojson_data:
+    folium.GeoJson(geojson_data, name="Boundary").add_to(m)
+
+st_folium(m, width=700, height=450)
