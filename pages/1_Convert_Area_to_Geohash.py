@@ -5,16 +5,12 @@ import numpy as np
 from shapely.geometry import shape, box, GeometryCollection, Polygon
 from shapely.validation import make_valid
 import geopandas as gpd
+import os
 
 st.set_page_config(page_title="GeoJSON to Geohash6", layout="wide")
 st.title("Area to Geohash6 Converter")
 
 uploaded_file = st.file_uploader("📂 Upload an area in GeoJSON format", type=["geojson", "json"])
-
-# Input filename before uploading
-# Required input: filename
-custom_filename = st.text_input("📄 Please write a filename for download and press Enter!")
-filename_ready = bool(custom_filename.strip())
 
 def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
     if 'features' in geojson_data:
@@ -60,7 +56,7 @@ def geohash6_to_geojson(geohashes):
         features.append({
             "type": "Feature",
             "geometry": json.loads(json.dumps(poly.__geo_interface__)),
-            "properties": {"Name": gh}
+            "properties": {"geoHash": gh}
         })
 
     geojson_output = {
@@ -69,7 +65,7 @@ def geohash6_to_geojson(geohashes):
     }
     return geojson_output
 
-if uploaded_file and custom_filename.strip():
+if uploaded_file:
     try:
         with st.spinner("⏳ Processing... Please wait."):
             geojson_data = json.load(uploaded_file)
@@ -78,15 +74,16 @@ if uploaded_file and custom_filename.strip():
             geojson_result = geohash6_to_geojson(geohashes)
             geojson_str = json.dumps(geojson_result)
 
+            # Auto filename from uploaded file
+            base_name = os.path.splitext(uploaded_file.name)[0]
+            auto_filename = f"{base_name}_geohash.geojson"
+
             st.download_button(
                 label="📥 Download data GeoJSON",
                 data=geojson_str,
-                file_name=f"{custom_filename.strip()}.geojson",
+                file_name=auto_filename,
                 mime="application/geo+json"
             )
 
     except Exception as e:
         st.error(f"❌ Error processing file: {e}")
-elif uploaded_file and not custom_filename.strip():
-    st.warning("⚠️ Please enter a filename before downloading.")
-
