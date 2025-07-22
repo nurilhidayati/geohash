@@ -22,41 +22,69 @@ def get_bounds_from_geojson(geojson):
                 bounds[1][1] = max(bounds[1][1], lon)
     return bounds
 
-st.header("🗺️ Peta Kabupaten (Filter Berdasarkan WADMKK)")
+st.header("🗺️ Peta Interaktif: Provinsi atau Kabupaten")
 
-# File path
-file_path = "pages/batas_admin_indoensia.geojson"
-
-# Cek keberadaan file
-if not os.path.exists(file_path):
-    st.error("❌ File 'batas_admin_indoensia.geojson' tidak ditemukan di folder 'pages/'")
-    st.stop()
-
-# Baca GeoJSON
-with open(file_path, "r", encoding="utf-8") as f:
-    geojson_data = json.load(f)
-
-# Ambil list unik WADMKK (tanpa None)
-wadmkk_list = sorted({f["properties"].get("WADMKK") for f in geojson_data["features"] if f["properties"].get("WADMKK")})
-
-# Tambahkan opsi awal None
-options = ["-- Pilih Kabupaten --"] + wadmkk_list
-selected_wadmkk = st.selectbox("🏙️ Pilih Kabupaten (WADMKK):", options)
-
-# Peta awal
+# Inisialisasi peta awal
 m = folium.Map(location=[-2.5, 117.5], zoom_start=5)
 
-# Jika user memilih kabupaten
-if selected_wadmkk != "-- Pilih Kabupaten --":
-    filtered_features = [f for f in geojson_data["features"] if f["properties"].get("WADMKK") == selected_wadmkk]
-    filtered_geojson = {
-        "type": "FeatureCollection",
-        "features": filtered_features
-    }
+# === Baca dan siapkan data kabupaten ===
+kabupaten_file = "pages/batas_admin_kabupaten.geojson"
+provinsi_file = "pages/batas_admin_provinsi.geojson"
 
-    folium.GeoJson(filtered_geojson, name=selected_wadmkk).add_to(m)
+if not os.path.exists(kabupaten_file) or not os.path.exists(provinsi_file):
+    st.error("❌ File batas provinsi/kabupaten tidak ditemukan.")
+    st.stop()
 
-    if filtered_features:
+with open(kabupaten_file, "r", encoding="utf-8") as f:
+    kabupaten_data = json.load(f)
+
+with open(provinsi_file, "r", encoding="utf-8") as f:
+    provinsi_data = json.load(f)
+
+# Siapkan pilihan user
+mode = st.radio("📌 Pilih Mode:", ["Provinsi", "Kabupaten"])
+
+if mode == "Kabupaten":
+    wadmkk_list = sorted({
+        f["properties"].get("WADMKK")
+        for f in kabupaten_data["features"]
+        if f["properties"].get("WADMKK")
+    })
+    selected_kabupaten = st.selectbox("🏙️ Pilih Kabupaten:", ["-- Pilih --"] + wadmkk_list)
+
+    if selected_kabupaten != "-- Pilih --":
+        filtered_features = [
+            f for f in kabupaten_data["features"]
+            if f["properties"].get("WADMKK") == selected_kabupaten
+        ]
+        filtered_geojson = {
+            "type": "FeatureCollection",
+            "features": filtered_features
+        }
+
+        folium.GeoJson(filtered_geojson, name=selected_kabupaten).add_to(m)
+        bounds = get_bounds_from_geojson(filtered_geojson)
+        m.fit_bounds(bounds)
+
+elif mode == "Provinsi":
+    provinsi_list = sorted({
+        f["properties"].get("PROVINSI")
+        for f in provinsi_data["features"]
+        if f["properties"].get("PROVINSI")
+    })
+    selected_provinsi = st.selectbox("🏛️ Pilih Provinsi:", ["-- Pilih --"] + provinsi_list)
+
+    if selected_provinsi != "-- Pilih --":
+        filtered_features = [
+            f for f in provinsi_data["features"]
+            if f["properties"].get("PROVINSI") == selected_provinsi
+        ]
+        filtered_geojson = {
+            "type": "FeatureCollection",
+            "features": filtered_features
+        }
+
+        folium.GeoJson(filtered_geojson, name=selected_provinsi).add_to(m)
         bounds = get_bounds_from_geojson(filtered_geojson)
         m.fit_bounds(bounds)
 
