@@ -3,6 +3,7 @@ import json
 import folium
 from streamlit_folium import st_folium
 import os
+from collections import Counter
 
 # Fungsi bantu untuk bounding map
 def get_bounds_from_geojson(geojson):
@@ -27,7 +28,7 @@ st.header("🗺️ Peta Kabupaten (Filter Berdasarkan WADMKK)")
 # File path
 file_path = "pages/batas_admin_indoensia.geojson"
 
-# Baca file GeoJSON (dari upload sebelumnya)
+# Baca file GeoJSON
 if not os.path.exists(file_path):
     st.error("❌ File 'batas_admin_indoensia.geojson' tidak ditemukan di folder 'pages/'")
     st.stop()
@@ -35,12 +36,26 @@ if not os.path.exists(file_path):
 with open(file_path, "r", encoding="utf-8") as f:
     geojson_data = json.load(f)
 
-# Ambil nilai unik dari kolom WADMKK
-wadmkk_list = sorted({f["properties"].get("WADMKK", "Unknown") for f in geojson_data["features"]})
-selected_wadmkk = st.selectbox("🏙️ Pilih Kabupaten (WADMKK):", wadmkk_list)
+# Ambil dan hitung jumlah fitur per kabupaten (WADMKK)
+wadmkk_counter = Counter(
+    f["properties"].get("WADMKK") for f in geojson_data["features"]
+    if f["properties"].get("WADMKK")
+)
 
-# Filter fitur berdasarkan WADMKK
-filtered_features = [f for f in geojson_data["features"] if f["properties"].get("WADMKK") == selected_wadmkk]
+# Siapkan mapping label → WADMKK asli
+wadmkk_options = {
+    f"{k} ({v} fitur)": k for k, v in sorted(wadmkk_counter.items())
+}
+
+# Dropdown pilihan
+selected_label = st.selectbox("🏙️ Pilih Kabupaten (WADMKK):", list(wadmkk_options.keys()))
+selected_wadmkk = wadmkk_options[selected_label]
+
+# Filter fitur
+filtered_features = [
+    f for f in geojson_data["features"]
+    if f["properties"].get("WADMKK") == selected_wadmkk
+]
 filtered_geojson = {
     "type": "FeatureCollection",
     "features": filtered_features
