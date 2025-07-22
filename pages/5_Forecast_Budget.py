@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 import requests
 
 # === Exchange Rate Fetching ===
@@ -31,12 +30,6 @@ def get_exchange_rates():
             "success": False
         }
 
-def get_usd_to_idr_rate():
-    return get_exchange_rates()["usd_to_idr"]
-
-def get_idr_to_usd_rate():
-    return get_exchange_rates()["idr_to_usd"]
-
 def format_currency(amount, currency="IDR"):
     if currency == "IDR":
         return f"Rp {amount:,.0f}"
@@ -44,21 +37,32 @@ def format_currency(amount, currency="IDR"):
         return f"${amount:,.2f}"
 
 # === Streamlit App Interface ===
-st.title("💱 Rupiah to USD Converter")
+st.title("💱 Currency Converter: Rupiah ↔ USD")
 
 # Get exchange rate
 rates = get_exchange_rates()
 
 # Show exchange rate info
-st.markdown(f"**Exchange Rate (Realtime):** 1 USD = Rp {rates['usd_to_idr']:,.0f} (Last Updated: {rates['last_updated']})")
+st.markdown(f"**Exchange Rate:** 1 USD = Rp {rates['usd_to_idr']:,.0f} (Updated: {rates['last_updated']})")
 
-# Input amount in IDR
-idr_amount = st.number_input("Enter amount in Rupiah (IDR):", min_value=0.0, step=1000.0, format="%.2f")
+# Choose conversion direction
+conversion_direction = st.radio(
+    "Choose conversion direction:",
+    ("IDR to USD", "USD to IDR")
+)
 
-# Convert and display
-if idr_amount > 0:
-    usd_amount = idr_amount * rates["idr_to_usd"]
-    st.markdown(f"**Converted:** {format_currency(idr_amount, 'IDR')} = {format_currency(usd_amount, 'USD')}")
+# Input and conversion
+if conversion_direction == "IDR to USD":
+    idr_amount = st.number_input("Enter amount in Rupiah (IDR):", min_value=0.0, step=1000.0, format="%.2f")
+    if idr_amount > 0:
+        usd_amount = idr_amount * rates["idr_to_usd"]
+        st.success(f"{format_currency(idr_amount, 'IDR')} = {format_currency(usd_amount, 'USD')}")
+
+else:  # USD to IDR
+    usd_amount = st.number_input("Enter amount in USD:", min_value=0.0, step=10.0, format="%.2f")
+    if usd_amount > 0:
+        idr_amount = usd_amount * rates["usd_to_idr"]
+        st.success(f"{format_currency(usd_amount, 'USD')} = {format_currency(idr_amount, 'IDR')}")
 
 
 # --- FORECAST FUNCTION ---
