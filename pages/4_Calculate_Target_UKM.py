@@ -4,11 +4,13 @@ import geopandas as gpd
 import pandas as pd
 import io
 import geohash2
+import json
 from shapely.geometry import box
 
+st.set_page_config(page_title="🛣️ Calculate Target UKM", layout="wide")
 st.title("🛣️ Calculate Target UKM")
 
-uploaded_file = st.file_uploader("📄 Upload CSV with `geoHash` column", type=["csv"])
+uploaded_file = st.file_uploader("📄 Upload GeoJSON or CSV with `geoHash` column", type=["csv", "geojson", "json"])
 
 def geohash_to_polygon(gh):
     if len(gh) != 6:
@@ -48,11 +50,24 @@ def download_clipped_roads_from_geohashes(geohash_list):
             st.warning(f"⚠️ Failed to fetch for geohash {gh}: {e}")
     return all_roads.reset_index(drop=True)
 
-if uploaded_file and st.button("🗂️ Download Roads (GeoJSON)"):
+if uploaded_file and st.button("🗂️ Calculate UKM (GeoJSON)"):
     try:
-        df = pd.read_csv(uploaded_file)
+        filename = uploaded_file.name.lower()
+        # Baca data berdasarkan jenis file
+        if filename.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        elif filename.endswith((".geojson", ".json")):
+            gdf = gpd.read_file(uploaded_file)
+            if 'geoHash' not in gdf.columns:
+                st.error("❌ GeoJSON must contain a 'geoHash' property.")
+                st.stop()
+            df = pd.DataFrame(gdf.drop(columns='geometry', errors='ignore'))
+        else:
+            st.error("❌ Unsupported file type.")
+            st.stop()
+
         if 'geoHash' not in df.columns:
-            st.error("❌ CSV must contain a column named 'geoHash'")
+            st.error("❌ File must contain a column named 'geoHash'")
         else:
             geohash_list = df['geoHash'].dropna().astype(str).str.strip()
             geohash_list = geohash_list[geohash_list.str.len() == 6].unique().tolist()
@@ -66,14 +81,12 @@ if uploaded_file and st.button("🗂️ Download Roads (GeoJSON)"):
                 if gdf_roads.empty:
                     st.warning("⚠️ No roads found inside all geohashes.")
                 else:
-                    # Hitung panjang total jalan (dalam kilometer)
                     gdf_roads_metric = gdf_roads.to_crs(epsg=3857)
                     total_length_km = gdf_roads_metric.length.sum() / 1000
 
                     st.success(f"✅ {len(gdf_roads)} clipped road segments found.")
                     st.info(f"🧮 Total road length: **{total_length_km:.2f} km**")
 
-                    # Simpan GeoJSON
                     gdf_roads = gdf_roads.to_crs(epsg=4326)
                     buffer = io.BytesIO()
                     gdf_roads.to_file(buffer, driver="GeoJSON")
