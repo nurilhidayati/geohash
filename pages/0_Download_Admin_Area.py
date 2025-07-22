@@ -66,9 +66,17 @@ if st.button("Download Boundary"):
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmpfile:
                     geojson_data, filepath = download_boundary_geojson(area_name, save_as=tmpfile.name)
 
-                    # Show boundary map
+                    # Calculate map center from first polygon coordinates
+                    coords = geojson_data['features'][0]['geometry']['coordinates']
+                    # Flatten to get representative coordinate for center
+                    if geojson_data['features'][0]['geometry']['type'] == 'Polygon':
+                        lon, lat = coords[0][0]
+                    else:  # MultiPolygon
+                        lon, lat = coords[0][0][0]
+
+                    # Show boundary map centered
                     st.subheader("🗺️ Preview Boundary on Map")
-                    m = folium.Map(zoom_start=8)
+                    m = folium.Map(location=[lat, lon], zoom_start=10)
                     folium.GeoJson(geojson_data, name="Boundary").add_to(m)
                     st_folium(m, width=700, height=450)
 
