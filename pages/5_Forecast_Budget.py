@@ -164,6 +164,12 @@ if uploaded_file:
         csv_data = df_forecast.to_csv(index=False)
 
         # === Download Buttons ===
+        st.download_button(
+            label="📥 Download Forecast Excel",
+            data=output_excel,
+            file_name="forecast_budget_filled.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
         st.download_button(
             label="📥 Download Forecast CSV",
