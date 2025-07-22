@@ -39,22 +39,26 @@ with open(file_path, "r", encoding="utf-8") as f:
 # Ambil list unik WADMKK (tanpa None)
 wadmkk_list = sorted({f["properties"].get("WADMKK") for f in geojson_data["features"] if f["properties"].get("WADMKK")})
 
-# Dropdown hanya nama kabupaten
-selected_wadmkk = st.selectbox("🏙️ Pilih Kabupaten (WADMKK):", wadmkk_list)
+# Tambahkan opsi awal None
+options = ["-- Pilih Kabupaten --"] + wadmkk_list
+selected_wadmkk = st.selectbox("🏙️ Pilih Kabupaten (WADMKK):", options)
 
-# Filter fitur berdasarkan pilihan
-filtered_features = [f for f in geojson_data["features"] if f["properties"].get("WADMKK") == selected_wadmkk]
-filtered_geojson = {
-    "type": "FeatureCollection",
-    "features": filtered_features
-}
-
-# Peta
+# Peta awal
 m = folium.Map(location=[-2.5, 117.5], zoom_start=5)
-folium.GeoJson(filtered_geojson, name=selected_wadmkk).add_to(m)
 
-if filtered_features:
-    bounds = get_bounds_from_geojson(filtered_geojson)
-    m.fit_bounds(bounds)
+# Jika user memilih kabupaten
+if selected_wadmkk != "-- Pilih Kabupaten --":
+    filtered_features = [f for f in geojson_data["features"] if f["properties"].get("WADMKK") == selected_wadmkk]
+    filtered_geojson = {
+        "type": "FeatureCollection",
+        "features": filtered_features
+    }
 
+    folium.GeoJson(filtered_geojson, name=selected_wadmkk).add_to(m)
+
+    if filtered_features:
+        bounds = get_bounds_from_geojson(filtered_geojson)
+        m.fit_bounds(bounds)
+
+# Tampilkan peta
 st_folium(m, width=700, height=500)
