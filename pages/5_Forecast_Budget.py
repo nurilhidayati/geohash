@@ -161,27 +161,18 @@ if uploaded_file:
         output_excel.seek(0)
 
         # === Export to CSV ===
-        output_csv = io.StringIO()
-        df_forecast.to_csv(output_csv, index=False)
-        output_csv.seek(0)
+        csv_data = df_forecast.to_csv(index=False)
 
         # === Download Buttons ===
-        st.download_button(
-            label="📥 Download Forecast Excel",
-            data=output_excel,
-            file_name="forecast_budget_filled.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
 
         st.download_button(
             label="📥 Download Forecast CSV",
-            data=output_csv,
+            data=csv_data,  # ✅ Use string, not StringIO
             file_name="forecast_budget_filled.csv",
             mime="text/csv"
         )
     else:
         st.error("⚠️ Kolom CSV harus memiliki: city, target_km, dax_number, month_estimation")
-
 
 # === MANUAL INPUT FORECAST ===
 st.subheader("🧮 Manual Forecast Calculator")
