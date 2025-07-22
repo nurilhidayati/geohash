@@ -3,11 +3,11 @@ import requests
 import json
 import tempfile
 import osm2geojson
+import folium
+from streamlit_folium import st_folium
+
 
 def download_boundary_geojson(area_name, save_as='boundary.geojson'):
-    """
-    Downloads administrative boundary polygons only as GeoJSON using Overpass API.
-    """
     overpass_url = "https://overpass-api.de/api/interpreter"
     query = f"""
     [out:json][timeout:25];
@@ -31,7 +31,7 @@ def download_boundary_geojson(area_name, save_as='boundary.geojson'):
     # Convert to GeoJSON
     geojson = osm2geojson.json2geojson(data)
 
-    # Filter to only Polygon or MultiPolygon features
+    # Filter polygon features
     features = [feat for feat in geojson['features']
                 if feat['geometry']['type'] in ['Polygon', 'MultiPolygon']]
 
@@ -65,6 +65,12 @@ if st.button("Download Boundary"):
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".geojson") as tmpfile:
                     geojson_data, filepath = download_boundary_geojson(area_name, save_as=tmpfile.name)
+
+                    # Show boundary map
+                    st.subheader("🗺️ Preview Boundary on Map")
+                    m = folium.Map(zoom_start=8)
+                    folium.GeoJson(geojson_data, name="Boundary").add_to(m)
+                    st_folium(m, width=700, height=450)
 
                     with open(filepath, 'rb') as f:
                         st.success("✅ Boundary ready. Click below to download:")
