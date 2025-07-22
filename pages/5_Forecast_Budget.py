@@ -119,9 +119,8 @@ def forecast_budget(target_km, dax_number, month_estimation,
         "Total Forecast Budget": round(total_forecast),
         "Total Forecast Budget (USD)": round(total_forecast_usd, 2)
     }
-import openpyxl
-from openpyxl.utils.dataframe import dataframe_to_rows
-from io import BytesIO
+
+import io
 
 # === BULK FORECAST ===
 st.subheader("📂 Bulk Forecast from CSV")
@@ -155,24 +154,30 @@ if uploaded_file:
 
         df_forecast = pd.DataFrame(forecast_results)
 
-        # === Load template Excel and append ===
-        path_template = "/pages/forecast_budget.xlsx"
-        wb = openpyxl.load_workbook(path_template)
-        ws = wb.active
+        # === Export to Excel ===
+        output_excel = io.BytesIO()
+        with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+            df_forecast.to_excel(writer, index=False, sheet_name="Forecast")
+        output_excel.seek(0)
 
-        for r in dataframe_to_rows(df_forecast, index=False, header=False):
-            ws.append(r)
+        # === Export to CSV ===
+        output_csv = io.StringIO()
+        df_forecast.to_csv(output_csv, index=False)
+        output_csv.seek(0)
 
-        output_excel = BytesIO()
-        wb.save(output_excel)
-
-        st.success("✅ Forecast berhasil dimasukkan ke Excel!")
-
+        # === Download Buttons ===
         st.download_button(
             label="📥 Download Forecast Excel",
-            data=output_excel.getvalue(),
+            data=output_excel,
             file_name="forecast_budget_filled.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        st.download_button(
+            label="📥 Download Forecast CSV",
+            data=output_csv,
+            file_name="forecast_budget_filled.csv",
+            mime="text/csv"
         )
     else:
         st.error("⚠️ Kolom CSV harus memiliki: city, target_km, dax_number, month_estimation")
