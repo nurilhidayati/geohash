@@ -2,7 +2,28 @@ import streamlit as st
 import pandas as pd
 import requests
 
+# Initialize MCP integration (ubah URL sesuai MCP server kamu)
+from streamlit_mcp_tools import StreamlitMCPTools, MCPStreamlitIntegration
 
+mcp = MCPStreamlitIntegration("http://your-mcp-server:3000")
+
+# Contoh: Registrasi custom tool (bisa disesuaikan)
+# mcp.register_tool("my_tool", "Description", parameters, function)
+
+# Fungsi konversi menggunakan MCP
+def convert_currency_via_mcp(amount, from_currency="IDR", to_currency="USD"):
+    try:
+        result = StreamlitMCPTools.currency_converter_tool(
+            amount=amount,
+            from_currency=from_currency,
+            to_currency=to_currency
+        )
+        return result.get("converted_amount", None)
+    except Exception as e:
+        st.warning(f"Gagal konversi via MCP: {str(e)}. Gunakan kurs fallback.")
+        return amount * get_exchange_rates().get("idr_to_usd", 0.00006329)
+
+# Fungsi fallback ambil kurs jika MCP gagal
 @st.cache_data(ttl=3600)
 def get_exchange_rates():
     try:
@@ -31,14 +52,19 @@ def get_exchange_rates():
             "success": False
         }
 
-def get_usd_to_idr_rate():
-    return get_exchange_rates()["usd_to_idr"]
-
+# Format tampilan mata uang
 def format_currency(amount, currency="IDR"):
     if currency == "IDR":
         return f"Rp {amount:,.0f}"
     else:
         return f"${amount:,.2f}"
+
+# UI Streamlit
+st.title("💱 Currency Converter via MCP")
+amount_idr = st.number_input("Masukkan jumlah dalam IDR", min_value=0.0, step=100000.0)
+if st.button("Konversi ke USD via MCP"):
+    converted = convert_currency_via_mcp(amount_idr, from_currency="IDR", to_currency="USD")
+    st.success(f"Hasil Konversi: {format_currency(converted, 'USD')}")
 
 # --- FORECAST FUNCTION ---
 def forecast_budget(target_km, dax_number, month_estimation,
