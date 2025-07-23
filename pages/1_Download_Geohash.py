@@ -126,8 +126,8 @@ for key in ["selected_kabupaten", "selected_provinsi", "has_searched", "geojson_
     if key not in st.session_state:
         st.session_state[key] = None if key != "has_searched" else False
 
-# Dropdown
-col1, col2 = st.columns([1, 1])
+# === Dropdown dan Tombol Cari dalam satu baris ===
+col1, col2, col3 = st.columns([1, 1, 0.5])
 
 with col1:
     selected_kabupaten = None
@@ -141,10 +141,8 @@ with col2:
         provinsi_list = sorted({f["properties"].get("PROVINSI") for f in prov_geojson["features"] if f["properties"].get("PROVINSI")})
         selected_provinsi = st.selectbox("🏞️ Select Province:", ["-- Select Province --"] + provinsi_list)
 
-# Tombol cari dan tombol download dalam 2 kolom
-col_btn1, col_btn2 = st.columns([1, 1])
-
-with col_btn1:
+with col3:
+    st.markdown("<br>", unsafe_allow_html=True)  # Spasi vertikal agar tombol sejajar
     if st.button("🔍 Cari"):
         if selected_kabupaten and selected_kabupaten != "-- Select Regency --":
             st.session_state.selected_kabupaten = selected_kabupaten
@@ -159,7 +157,6 @@ with col_btn1:
             st.session_state.has_searched = False
 
 
-# Proses hasil pencarian
 # Proses hasil pencarian
 if st.session_state.has_searched:
     selected_geojson = None
