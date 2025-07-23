@@ -155,7 +155,6 @@ if st.session_state.has_searched:
         ]
         selected_geojson = {"type": "FeatureCollection", "features": filtered_kab}
         layer_name = st.session_state.selected_kabupaten
-        folium.GeoJson(selected_geojson, name="Kabupaten").add_to(m)
         if filtered_kab:
             m.fit_bounds(get_bounds_from_geojson(selected_geojson))
 
@@ -166,15 +165,9 @@ if st.session_state.has_searched:
         ]
         selected_geojson = {"type": "FeatureCollection", "features": filtered_prov}
         layer_name = st.session_state.selected_provinsi
-        folium.GeoJson(
-            selected_geojson,
-            name="Provinsi",
-            style_function=lambda x: {"color": "green", "weight": 2}
-        ).add_to(m)
         if filtered_prov:
             m.fit_bounds(get_bounds_from_geojson(selected_geojson))
 
-    # Simpan hasil geojson ke session
     st.session_state.geojson_result = selected_geojson
 
     if selected_geojson:
@@ -184,15 +177,16 @@ if st.session_state.has_searched:
         geohashes = geojson_to_geohash6(selected_geojson)
         geohash_geojson = geohash6_to_geojson(geohashes)
 
-        # Tampilkan GeoHash layer
+        # ✅ Tampilkan hanya GeoHash di peta
         folium.GeoJson(
             geohash_geojson,
             name="GeoHash6",
             style_function=lambda x: {"color": "#ff6600", "weight": 1, "fillOpacity": 0.3}
         ).add_to(m)
 
-        # === Tombol download ===
+        # === Tombol download
         with col_btn2:
+            # Download boundary
             geojson_str = json.dumps(selected_geojson, ensure_ascii=False, indent=2)
             st.download_button(
                 label="💾 Download Area Boundary",
@@ -201,6 +195,7 @@ if st.session_state.has_searched:
                 mime="application/geo+json"
             )
 
+            # Download geohash
             geohash_str = json.dumps(geohash_geojson, ensure_ascii=False, indent=2)
             st.download_button(
                 label="📥 Download GeoHash6",
@@ -208,7 +203,6 @@ if st.session_state.has_searched:
                 file_name=f"{name}_geohash6.geojson",
                 mime="application/geo+json"
             )
-
 
 # Tampilkan map
 st_data = st_folium(m, width=1200, height=600)
