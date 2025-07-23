@@ -27,7 +27,8 @@ def get_bounds_from_geojson(geojson):
     return bounds
 
 # Fungsi GeoJSON ke GeoHash
-def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
+@st.cache_data(show_spinner="⏳ Processing GeoHash...")
+def geojson_to_geohash6(geojson_data, precision=6, step=0.005):
     if 'features' in geojson_data:
         geometries = [shape(feature['geometry']) for feature in geojson_data['features']]
     elif 'geometry' in geojson_data:
@@ -38,13 +39,18 @@ def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
         raise ValueError("Unsupported GeoJSON structure")
 
     full_geom = GeometryCollection(geometries) if len(geometries) > 1 else geometries[0]
-    full_geom = make_valid(full_geom)
+    if not full_geom.is_valid:
+        full_geom = make_valid(full_geom)
 
     minx, miny, maxx, maxy = full_geom.bounds
 
+    # Gunakan linspace untuk kurangi jumlah iterasi (lebih cepat)
+    x_steps = np.linspace(minx, maxx, int((maxx - minx)/step))
+    y_steps = np.linspace(miny, maxy, int((maxy - miny)/step))
+
     geohashes = set()
-    for lat in np.arange(miny, maxy, step):
-        for lon in np.arange(minx, maxx, step):
+    for lat in y_steps:
+        for lon in x_steps:
             cell = box(lon, lat, lon + step, lat + step)
             if full_geom.intersects(cell):
                 gh = geohash2.encode(lat, lon, precision)
@@ -72,7 +78,7 @@ def geohash6_to_geojson(geohashes):
         features.append({
             "type": "Feature",
             "geometry": json.loads(json.dumps(poly.__geo_interface__)),
-            "properties": {"geoHash": gh}
+            "properties": {"Name": gh}
         })
 
     return {
@@ -82,7 +88,7 @@ def geohash6_to_geojson(geohashes):
 
 # Setup
 st.set_page_config(layout="wide")
-st.title("🗺️ Download Boundary & GeoHash6")
+st.title("🗺️ Download GeoHash")
 
 # Siapkan default map
 m = folium.Map(location=[-2.5, 117.5], zoom_start=5)
