@@ -127,34 +127,59 @@ for key in ["selected_kabupaten", "selected_provinsi", "has_searched", "geojson_
         st.session_state[key] = None if key != "has_searched" else False
 
 # === Dropdown dan Tombol Cari dalam satu baris ===
-col1, col2, col3 = st.columns([2, 2, 0.5])
+# === 3 kolom utama: Regency, Province, dan tombol Cari ===
+col1, col2, col3 = st.columns([2, 2, 1])
 
+# === Regency Dropdown + Clear Button ===
 with col1:
-    selected_kabupaten = None
-    if kab_geojson:
-        kabupaten_list = sorted({f["properties"].get("WADMKK") for f in kab_geojson["features"] if f["properties"].get("WADMKK")})
-        selected_kabupaten = st.selectbox("🏙️ Select Regency:", ["-- Select Regency --"] + kabupaten_list)
+    subcol1, subcol2 = st.columns([5, 1])
+    with subcol1:
+        selected_kabupaten = None
+        if kab_geojson:
+            kabupaten_list = sorted({f["properties"].get("WADMKK") for f in kab_geojson["features"] if f["properties"].get("WADMKK")})
+            selected_kabupaten = st.selectbox(
+                "🏙️ Select Regency:",
+                ["-- Select Regency --"] + kabupaten_list,
+                key="regency_select"
+            )
+    with subcol2:
+        st.markdown("###### ")  # Spacer
+        if st.button("❌", key="clear_regency"):
+            st.session_state["regency_select"] = "-- Select Regency --"
 
+# === Province Dropdown + Clear Button ===
 with col2:
-    selected_provinsi = None
-    if prov_geojson:
-        provinsi_list = sorted({f["properties"].get("PROVINSI") for f in prov_geojson["features"] if f["properties"].get("PROVINSI")})
-        selected_provinsi = st.selectbox("🏞️ Select Province:", ["-- Select Province --"] + provinsi_list)
+    subcol3, subcol4 = st.columns([5, 1])
+    with subcol3:
+        selected_provinsi = None
+        if prov_geojson:
+            provinsi_list = sorted({f["properties"].get("PROVINSI") for f in prov_geojson["features"] if f["properties"].get("PROVINSI")})
+            selected_provinsi = st.selectbox(
+                "🏞️ Select Province:",
+                ["-- Select Province --"] + provinsi_list,
+                key="province_select"
+            )
+    with subcol4:
+        st.markdown("###### ")  # Spacer
+        if st.button("❌", key="clear_province"):
+            st.session_state["province_select"] = "-- Select Province --"
 
+# === Tombol Cari Sejajar ===
 with col3:
-    st.markdown("<br>", unsafe_allow_html=True)  # Spasi vertikal agar tombol sejajar
+    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🔍 Cari"):
-        if selected_kabupaten and selected_kabupaten != "-- Select Regency --":
-            st.session_state.selected_kabupaten = selected_kabupaten
+        if st.session_state.get("regency_select") and st.session_state["regency_select"] != "-- Select Regency --":
+            st.session_state.selected_kabupaten = st.session_state["regency_select"]
             st.session_state.selected_provinsi = None
             st.session_state.has_searched = True
-        elif selected_provinsi and selected_provinsi != "-- Select Province --":
-            st.session_state.selected_provinsi = selected_provinsi
+        elif st.session_state.get("province_select") and st.session_state["province_select"] != "-- Select Province --":
+            st.session_state.selected_provinsi = st.session_state["province_select"]
             st.session_state.selected_kabupaten = None
             st.session_state.has_searched = True
         else:
             st.warning("Please select either a district or a province")
             st.session_state.has_searched = False
+
 
 
 # Proses hasil pencarian
