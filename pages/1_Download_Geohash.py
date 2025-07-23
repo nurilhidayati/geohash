@@ -7,6 +7,7 @@ import numpy as np
 from shapely.geometry import shape, GeometryCollection, box, Polygon
 from shapely.validation import make_valid
 import geohash2
+import pandas as pd
 
 # Fungsi bantu untuk bounding map
 def get_bounds_from_geojson(geojson):
