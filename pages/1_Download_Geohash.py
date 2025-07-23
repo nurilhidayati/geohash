@@ -199,8 +199,7 @@ if st.session_state.has_searched:
         ).add_to(m)
 
         # === Tombol download
-        with col_btn2:
-
+        with col1:
             # Download geohash
             geohash_str = json.dumps(geohash_geojson, ensure_ascii=False, indent=2)
             st.download_button(
@@ -209,7 +208,7 @@ if st.session_state.has_searched:
                 file_name=f"{name}_geohash6.geojson",
                 mime="application/geo+json"
             )
-
+        with col2:
             geohash_csv = geohash_to_csv(geohashes)
             st.download_button(
                 label="📄 Download GeoHash6 CSV",
