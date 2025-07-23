@@ -86,6 +86,14 @@ def geohash6_to_geojson(geohashes):
         "features": features
     }
 
+def geohash_to_csv(geohashes):
+    rows = []
+    for gh in geohashes:
+        lat, lon, _, _ = geohash2.decode_exactly(gh)
+        rows.append({"geohash": gh, "lat": lat, "lon": lon})
+    df = pd.DataFrame(rows)
+    return df.to_csv(index=False)
+
 # Setup
 st.set_page_config(layout="wide")
 st.title("🗺️ Download GeoHash")
@@ -201,6 +209,15 @@ if st.session_state.has_searched:
                 file_name=f"{name}_geohash6.geojson",
                 mime="application/geo+json"
             )
+
+            geohash_csv = geohash_to_csv(geohashes)
+            st.download_button(
+                label="📄 Download GeoHash6 CSV",
+                data=geohash_csv,
+                file_name=f"{name}_geohash6.csv",
+                mime="text/csv"
+            )
+
 
 # Tampilkan map
 st_data = st_folium(m, width=1200, height=600)
