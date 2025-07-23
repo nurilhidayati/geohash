@@ -130,32 +130,33 @@ for key in ["selected_kabupaten", "selected_provinsi", "has_searched", "geojson_
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    selected_kabupaten = "-- Select Regency --"
+    selected_kabupaten = None
     if kab_geojson:
         kabupaten_list = sorted({f["properties"].get("WADMKK") for f in kab_geojson["features"] if f["properties"].get("WADMKK")})
         selected_kabupaten = st.selectbox("🏙️ Select Regency:", ["-- Select Regency --"] + kabupaten_list)
 
 with col2:
-    selected_provinsi = "-- Select Province --"
+    selected_provinsi = None
     if prov_geojson:
         provinsi_list = sorted({f["properties"].get("PROVINSI") for f in prov_geojson["features"] if f["properties"].get("PROVINSI")})
         selected_provinsi = st.selectbox("🏞️ Select Province:", ["-- Select Province --"] + provinsi_list)
 
-# Tombol cari & download
-col_btn1, col_btn2 = st.columns([1, 1])
-with col_btn1:
+# Tombol cari di bawah kolom terpisah
+col_btn = st.columns([1])[0]
+with col_btn:
     if st.button("🔍 Cari"):
-        if selected_kabupaten != "-- Select Regency --":
+        if selected_kabupaten and selected_kabupaten != "-- Select Regency --":
             st.session_state.selected_kabupaten = selected_kabupaten
             st.session_state.selected_provinsi = None
             st.session_state.has_searched = True
-        elif selected_provinsi != "-- Select Province --":
+        elif selected_provinsi and selected_provinsi != "-- Select Province --":
             st.session_state.selected_provinsi = selected_provinsi
             st.session_state.selected_kabupaten = None
             st.session_state.has_searched = True
         else:
             st.warning("Please select either a district or a province")
             st.session_state.has_searched = False
+
 
 # Proses hasil pencarian
 # Proses hasil pencarian
