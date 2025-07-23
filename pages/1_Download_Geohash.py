@@ -143,7 +143,7 @@ with col2:
 
 with col3:
     st.markdown("<br>", unsafe_allow_html=True)  # Spasi vertikal agar tombol sejajar
-    if st.button("🔍 Cari"):
+    if st.button("🔍 Search"):
         if selected_kabupaten and selected_kabupaten != "-- Select Regency --":
             st.session_state.selected_kabupaten = selected_kabupaten
             st.session_state.selected_provinsi = None
