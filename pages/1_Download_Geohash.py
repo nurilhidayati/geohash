@@ -141,9 +141,10 @@ with col2:
         provinsi_list = sorted({f["properties"].get("PROVINSI") for f in prov_geojson["features"] if f["properties"].get("PROVINSI")})
         selected_provinsi = st.selectbox("🏞️ Select Province:", ["-- Select Province --"] + provinsi_list)
 
-# Tombol cari di bawah kolom terpisah
-col_btn = st.columns([1])[0]
-with col_btn:
+# Tombol cari dan tombol download dalam 2 kolom
+col_btn1, col_btn2 = st.columns([1, 1])
+
+with col_btn1:
     if st.button("🔍 Cari"):
         if selected_kabupaten and selected_kabupaten != "-- Select Regency --":
             st.session_state.selected_kabupaten = selected_kabupaten
