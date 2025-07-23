@@ -152,9 +152,6 @@ with col3:
             st.session_state.selected_provinsi = selected_provinsi
             st.session_state.selected_kabupaten = None
             st.session_state.has_searched = True
-        else:
-            st.warning("Please select either a district or a province")
-            st.session_state.has_searched = False
 
 
 # Proses hasil pencarian
