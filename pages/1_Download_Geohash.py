@@ -4,6 +4,7 @@ import folium
 from streamlit_folium import st_folium
 import os
 import numpy as np
+import pandas as pd
 from shapely.geometry import shape, GeometryCollection, box, Polygon
 from shapely.validation import make_valid
 import geohash2
@@ -26,7 +27,7 @@ def get_bounds_from_geojson(geojson):
                 bounds[1][1] = max(bounds[1][1], lon)
     return bounds
 
-# Fungsi GeoJSON ke GeoHash
+# GeoJSON ke GeoHash
 def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
     if 'features' in geojson_data:
         geometries = [shape(feature['geometry']) for feature in geojson_data['features']]
@@ -51,7 +52,7 @@ def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
                 geohashes.add(gh)
     return geohashes
 
-# Fungsi GeoHash ke GeoJSON
+# GeoHash ke GeoJSON
 def geohash6_to_geojson(geohashes):
     features = []
     for gh in geohashes:
@@ -82,16 +83,14 @@ def geohash6_to_geojson(geohashes):
 
 # Setup
 st.set_page_config(layout="wide")
-st.title("🗺️ Download Boundary & GeoHash6")
+st.title("📍 Show GeoHash6 from Area")
 
 # Siapkan default map
 m = folium.Map(location=[-2.5, 117.5], zoom_start=5)
 
-# File kabupaten dan provinsi
+# Load data GeoJSON
 kab_file = "pages/batas_admin_kabupaten.geojson"
 prov_file = "pages/batas_admin_provinsi.geojson"
-
-# Load GeoJSON
 kab_geojson, prov_geojson = None, None
 
 if os.path.exists(kab_file):
@@ -106,14 +105,8 @@ if os.path.exists(prov_file):
 else:
     st.error("❌ File 'batas_admin_provinsi.geojson' tidak ditemukan")
 
-# Inisialisasi session_state
-for key in ["selected_kabupaten", "selected_provinsi", "has_searched", "geojson_result"]:
-    if key not in st.session_state:
-        st.session_state[key] = None if key != "has_searched" else False
-
 # Dropdown
 col1, col2 = st.columns([1, 1])
-
 with col1:
     selected_kabupaten = "-- Select Regency --"
     if kab_geojson:
@@ -126,88 +119,51 @@ with col2:
         provinsi_list = sorted({f["properties"].get("PROVINSI") for f in prov_geojson["features"] if f["properties"].get("PROVINSI")})
         selected_provinsi = st.selectbox("🏞️ Select Province:", ["-- Select Province --"] + provinsi_list)
 
-# Tombol cari & download
-col_btn1, col_btn2 = st.columns([1, 1])
-with col_btn1:
-    if st.button("🔍 Cari"):
-        if selected_kabupaten != "-- Select Regency --":
-            st.session_state.selected_kabupaten = selected_kabupaten
-            st.session_state.selected_provinsi = None
-            st.session_state.has_searched = True
-        elif selected_provinsi != "-- Select Province --":
-            st.session_state.selected_provinsi = selected_provinsi
-            st.session_state.selected_kabupaten = None
-            st.session_state.has_searched = True
-        else:
-            st.warning("Please select either a district or a province")
-            st.session_state.has_searched = False
+# Tombol cari
+if st.button("🔍 Show GeoHash"):
+    area_geojson = None
+    area_name = None
 
-# Proses hasil pencarian
-if st.session_state.has_searched:
-    if st.session_state.selected_kabupaten:
+    if selected_kabupaten != "-- Select Regency --":
         filtered_kab = [
             f for f in kab_geojson["features"]
-            if f["properties"].get("WADMKK") == st.session_state.selected_kabupaten
+            if f["properties"].get("WADMKK") == selected_kabupaten
         ]
-        kab_geo = {"type": "FeatureCollection", "features": filtered_kab}
-        st.session_state.geojson_result = kab_geo
-        folium.GeoJson(kab_geo, name="Kabupaten").add_to(m)
-        if filtered_kab:
-            m.fit_bounds(get_bounds_from_geojson(kab_geo))
+        area_geojson = {"type": "FeatureCollection", "features": filtered_kab}
+        area_name = selected_kabupaten
 
-    elif st.session_state.selected_provinsi:
+    elif selected_provinsi != "-- Select Province --":
         filtered_prov = [
             f for f in prov_geojson["features"]
-            if f["properties"].get("PROVINSI") == st.session_state.selected_provinsi
+            if f["properties"].get("PROVINSI") == selected_provinsi
         ]
-        prov_geo = {"type": "FeatureCollection", "features": filtered_prov}
-        st.session_state.geojson_result = prov_geo
+        area_geojson = {"type": "FeatureCollection", "features": filtered_prov}
+        area_name = selected_provinsi
+
+    if area_geojson:
+        bounds = get_bounds_from_geojson(area_geojson)
+        m.fit_bounds(bounds)
+
+        geohashes = geojson_to_geohash6(area_geojson)
+        geohash_geojson = geohash6_to_geojson(geohashes)
+
+        # Tampilkan GeoHash layer
         folium.GeoJson(
-            prov_geo,
-            name="Provinsi",
-            style_function=lambda x: {"color": "green", "weight": 2}
+            geohash_geojson,
+            name="GeoHash6",
+            style_function=lambda x: {"color": "#ff6600", "weight": 1, "fillOpacity": 0.3}
         ).add_to(m)
-        if filtered_prov:
-            m.fit_bounds(get_bounds_from_geojson(prov_geo))
 
-    with col_btn2:
-        if st.session_state.geojson_result:
-            name = (
-                st.session_state.selected_kabupaten or
-                st.session_state.selected_provinsi or
-                "boundary"
-            ).replace(" ", "_").lower()
-
-            # Download GeoJSON boundary
-            filename = f"{name}_boundary.geojson"
-            geojson_str = json.dumps(st.session_state.geojson_result, ensure_ascii=False, indent=2)
-            st.download_button(
-                label="💾 Download Area Boundary",
-                data=geojson_str,
-                file_name=filename,
-                mime="application/geo+json"
-            )
-
-            # Generate GeoHash6
-            geohashes = geojson_to_geohash6(st.session_state.geojson_result)
-            geohash_geojson = geohash6_to_geojson(geohashes)
-            geohash_str = json.dumps(geohash_geojson, ensure_ascii=False, indent=2)
-
-            # Download GeoHash6
-            geohash_filename = f"{name}_geohash6.geojson"
-            st.download_button(
-                label="📥 Download GeoHash6",
-                data=geohash_str,
-                file_name=geohash_filename,
-                mime="application/geo+json"
-            )
-
-            # Tampilkan layer GeoHash di peta (opsional)
-            folium.GeoJson(
-                geohash_geojson,
-                name="GeoHash6",
-                style_function=lambda x: {"color": "#ff6600", "weight": 1, "fillOpacity": 0.3}
-            ).add_to(m)
+        # Tampilkan tombol download CSV
+        gh_df = pd.DataFrame({"geohash6": sorted(list(geohashes))})
+        csv = gh_df.to_csv(index=False).encode("utf-8")
+        csv_filename = f"{area_name.replace(' ', '_').lower()}_geohash6.csv"
+        st.download_button(
+            label="📥 Download GeoHash as CSV",
+            data=csv,
+            file_name=csv_filename,
+            mime="text/csv"
+        )
 
 # Tampilkan map
 st_data = st_folium(m, width=1200, height=600)
