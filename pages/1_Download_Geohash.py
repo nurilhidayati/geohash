@@ -186,14 +186,6 @@ if st.session_state.has_searched:
 
         # === Tombol download
         with col_btn2:
-            # Download boundary
-            geojson_str = json.dumps(selected_geojson, ensure_ascii=False, indent=2)
-            st.download_button(
-                label="💾 Download Area Boundary",
-                data=geojson_str,
-                file_name=f"{name}_boundary.geojson",
-                mime="application/geo+json"
-            )
 
             # Download geohash
             geohash_str = json.dumps(geohash_geojson, ensure_ascii=False, indent=2)
