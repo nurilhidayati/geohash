@@ -27,8 +27,7 @@ def get_bounds_from_geojson(geojson):
     return bounds
 
 # Fungsi GeoJSON ke GeoHash
-@st.cache_data(show_spinner="⏳ Processing GeoHash...")
-def geojson_to_geohash6(geojson_data, precision=6, step=0.005):
+def geojson_to_geohash6(geojson_data, precision=6, step=0.0015):
     if 'features' in geojson_data:
         geometries = [shape(feature['geometry']) for feature in geojson_data['features']]
     elif 'geometry' in geojson_data:
@@ -39,24 +38,18 @@ def geojson_to_geohash6(geojson_data, precision=6, step=0.005):
         raise ValueError("Unsupported GeoJSON structure")
 
     full_geom = GeometryCollection(geometries) if len(geometries) > 1 else geometries[0]
-    if not full_geom.is_valid:
-        full_geom = make_valid(full_geom)
+    full_geom = make_valid(full_geom)
 
     minx, miny, maxx, maxy = full_geom.bounds
 
-    # Gunakan linspace untuk kurangi jumlah iterasi (lebih cepat)
-    x_steps = np.linspace(minx, maxx, int((maxx - minx)/step))
-    y_steps = np.linspace(miny, maxy, int((maxy - miny)/step))
-
     geohashes = set()
-    for lat in y_steps:
-        for lon in x_steps:
+    for lat in np.arange(miny, maxy, step):
+        for lon in np.arange(minx, maxx, step):
             cell = box(lon, lat, lon + step, lat + step)
             if full_geom.intersects(cell):
                 gh = geohash2.encode(lat, lon, precision)
                 geohashes.add(gh)
     return geohashes
-
 
 # Fungsi GeoHash ke GeoJSON
 def geohash6_to_geojson(geohashes):
