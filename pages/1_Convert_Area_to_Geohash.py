@@ -87,3 +87,16 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"❌ Error processing file: {e}")
+
+
+# Footer
+st.markdown(
+    """
+    <hr style="margin-top: 2rem; margin-bottom: 1rem;">
+    <div style='text-align: center; color: grey; font-size: 0.9rem;'>
+        © 2025 ID Karta IoT Team
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+

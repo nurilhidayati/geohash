@@ -123,7 +123,7 @@ if st.session_state.has_searched:
             filename = f"{name}_boundary.geojson"
             geojson_str = json.dumps(st.session_state.geojson_result, ensure_ascii=False, indent=2)
             st.download_button(
-                label="💾 Download Hasil",
+                label="💾 Download Area",
                 data=geojson_str,
                 file_name=filename,
                 mime="application/geo+json"

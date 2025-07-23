@@ -102,3 +102,14 @@ if st.session_state['gdf_roads'] is not None:
     st.session_state['gdf_roads'].to_file(buffer, driver="GeoJSON")
     buffer.seek(0)
     st.download_button("⬇️ Download Roads", buffer, "roads_inside_geohash.geojson", "application/geo+json")
+
+# Footer
+st.markdown(
+    """
+    <hr style="margin-top: 2rem; margin-bottom: 1rem;">
+    <div style='text-align: center; color: grey; font-size: 0.9rem;'>
+        © 2025 ID Karta IoT Team
+    </div>
+    """,
+    unsafe_allow_html=True
+)
