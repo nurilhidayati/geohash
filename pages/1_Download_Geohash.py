@@ -143,71 +143,72 @@ with col_btn1:
             st.session_state.has_searched = False
 
 # Proses hasil pencarian
+# Proses hasil pencarian
 if st.session_state.has_searched:
+    selected_geojson = None
+    layer_name = ""
+
     if st.session_state.selected_kabupaten:
         filtered_kab = [
             f for f in kab_geojson["features"]
             if f["properties"].get("WADMKK") == st.session_state.selected_kabupaten
         ]
-        kab_geo = {"type": "FeatureCollection", "features": filtered_kab}
-        st.session_state.geojson_result = kab_geo
-        folium.GeoJson(kab_geo, name="Kabupaten").add_to(m)
+        selected_geojson = {"type": "FeatureCollection", "features": filtered_kab}
+        layer_name = st.session_state.selected_kabupaten
+        folium.GeoJson(selected_geojson, name="Kabupaten").add_to(m)
         if filtered_kab:
-            m.fit_bounds(get_bounds_from_geojson(kab_geo))
+            m.fit_bounds(get_bounds_from_geojson(selected_geojson))
 
     elif st.session_state.selected_provinsi:
         filtered_prov = [
             f for f in prov_geojson["features"]
             if f["properties"].get("PROVINSI") == st.session_state.selected_provinsi
         ]
-        prov_geo = {"type": "FeatureCollection", "features": filtered_prov}
-        st.session_state.geojson_result = prov_geo
+        selected_geojson = {"type": "FeatureCollection", "features": filtered_prov}
+        layer_name = st.session_state.selected_provinsi
         folium.GeoJson(
-            prov_geo,
+            selected_geojson,
             name="Provinsi",
             style_function=lambda x: {"color": "green", "weight": 2}
         ).add_to(m)
         if filtered_prov:
-            m.fit_bounds(get_bounds_from_geojson(prov_geo))
+            m.fit_bounds(get_bounds_from_geojson(selected_geojson))
 
-    with col_btn2:
-        if st.session_state.geojson_result:
-            name = (
-                st.session_state.selected_kabupaten or
-                st.session_state.selected_provinsi or
-                "boundary"
-            ).replace(" ", "_").lower()
+    # Simpan hasil geojson ke session
+    st.session_state.geojson_result = selected_geojson
 
-            # Download GeoJSON boundary
-            filename = f"{name}_boundary.geojson"
-            geojson_str = json.dumps(st.session_state.geojson_result, ensure_ascii=False, indent=2)
+    if selected_geojson:
+        name = layer_name.replace(" ", "_").lower()
+
+        # Generate GeoHash
+        geohashes = geojson_to_geohash6(selected_geojson)
+        geohash_geojson = geohash6_to_geojson(geohashes)
+
+        # Tampilkan GeoHash layer
+        folium.GeoJson(
+            geohash_geojson,
+            name="GeoHash6",
+            style_function=lambda x: {"color": "#ff6600", "weight": 1, "fillOpacity": 0.3}
+        ).add_to(m)
+
+        # === Tombol download ===
+        with col_btn2:
+            geojson_str = json.dumps(selected_geojson, ensure_ascii=False, indent=2)
             st.download_button(
                 label="💾 Download Area Boundary",
                 data=geojson_str,
-                file_name=filename,
+                file_name=f"{name}_boundary.geojson",
                 mime="application/geo+json"
             )
 
-            # Generate GeoHash6
-            geohashes = geojson_to_geohash6(st.session_state.geojson_result)
-            geohash_geojson = geohash6_to_geojson(geohashes)
             geohash_str = json.dumps(geohash_geojson, ensure_ascii=False, indent=2)
-
-            # Download GeoHash6
-            geohash_filename = f"{name}_geohash6.geojson"
             st.download_button(
                 label="📥 Download GeoHash6",
                 data=geohash_str,
-                file_name=geohash_filename,
+                file_name=f"{name}_geohash6.geojson",
                 mime="application/geo+json"
             )
 
-            # Tampilkan layer GeoHash di peta (opsional)
-            folium.GeoJson(
-                geohash_geojson,
-                name="GeoHash6",
-                style_function=lambda x: {"color": "#ff6600", "weight": 1, "fillOpacity": 0.3}
-            ).add_to(m)
 
 # Tampilkan map
 st_data = st_folium(m, width=1200, height=600)
