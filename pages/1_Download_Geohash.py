@@ -196,7 +196,7 @@ if st.session_state.has_searched:
         ).add_to(m)
 
         # === Tombol download
-        col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns([5, 5])
         with col1:
             # Download geohash
             geohash_str = json.dumps(geohash_geojson, ensure_ascii=False, indent=2)
