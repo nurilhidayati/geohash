@@ -158,6 +158,9 @@ with col3:
 
 
 # Proses hasil pencarian
+# Selalu tampilkan map meskipun sedang proses
+m = folium.Map(location=[-2, 118], zoom_start=5)
+
 if st.session_state.has_searched:
     selected_geojson = None
     layer_name = ""
@@ -187,39 +190,43 @@ if st.session_state.has_searched:
     if selected_geojson:
         name = layer_name.replace(" ", "_").lower()
 
-        # Generate GeoHash
-        geohashes = geojson_to_geohash6(selected_geojson)
-        geohash_geojson = geohash6_to_geojson(geohashes)
+        with st.spinner("🔄 Generating GeoHash..."):
+            geohashes = geojson_to_geohash6(selected_geojson)
+            geohash_geojson = geohash6_to_geojson(geohashes)
 
-        # ✅ Tampilkan hanya GeoHash di peta
-        folium.GeoJson(
-            geohash_geojson,
-            name="GeoHash6",
-            style_function=lambda x: {"color": "#ff6600", "weight": 1, "fillOpacity": 0.3}
-        ).add_to(m)
+            # Tampilkan hanya GeoHash di peta
+            folium.GeoJson(
+                geohash_geojson,
+                name="GeoHash6",
+                style_function=lambda x: {
+                    "color": "#ff6600",
+                    "weight": 1,
+                    "fillOpacity": 0.3
+                }
+            ).add_to(m)
 
-        # === Tombol download
-        with col1:
-            # Download geohash
-            geohash_str = json.dumps(geohash_geojson, ensure_ascii=False, indent=2)
-            st.download_button(
-                label="📥 Download GeoHash6",
-                data=geohash_str,
-                file_name=f"{name}_geohash6.geojson",
-                mime="application/geo+json"
-            )
-        with col2:
-            geohash_csv = geohash_to_csv(geohashes)
-            st.download_button(
-                label="📄 Download GeoHash6 CSV",
-                data=geohash_csv,
-                file_name=f"{name}_geohash6.csv",
-                mime="text/csv"
-            )
+            # Download buttons
+            with col1:
+                geohash_str = json.dumps(geohash_geojson, ensure_ascii=False, indent=2)
+                st.download_button(
+                    label="📥 Download GeoHash6",
+                    data=geohash_str,
+                    file_name=f"{name}_geohash6.geojson",
+                    mime="application/geo+json"
+                )
+            with col2:
+                geohash_csv = geohash_to_csv(geohashes)
+                st.download_button(
+                    label="📄 Download GeoHash6 CSV",
+                    data=geohash_csv,
+                    file_name=f"{name}_geohash6.csv",
+                    mime="text/csv"
+                )
+
+# ❗ Peta selalu ditampilkan setelah semua logika di atas
+st_folium(m, width=1200, height=600)
 
 
-# Tampilkan map
-st_data = st_folium(m, width=1200, height=600)
 
 # Footer
 st.markdown(
