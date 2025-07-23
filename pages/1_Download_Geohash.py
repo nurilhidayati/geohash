@@ -127,7 +127,7 @@ for key in ["selected_kabupaten", "selected_provinsi", "has_searched", "geojson_
         st.session_state[key] = None if key != "has_searched" else False
 
 # === Dropdown dan Tombol Cari dalam satu baris ===
-col1, col2, col3 = st.columns([1, 2, 0.5])
+col1, col2, col3 = st.columns([2, 2, 0.5])
 
 with col1:
     selected_kabupaten = None
