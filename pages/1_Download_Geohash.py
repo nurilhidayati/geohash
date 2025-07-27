@@ -86,16 +86,25 @@ if boundary_gdf is not None and not boundary_gdf.empty:
         <link rel="stylesheet" href="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.css"/>
         <script src="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.js"></script>
     """))
-    m.get_root().html.add_child(folium.Element(f"""
+    m.get_root().html.add_child(folium.Element("""
         <script>
-            setTimeout(function() {{
+            setTimeout(function() {
                 var map = window.map;
-                var leftLayer = map._layers[{list(boundary_layer._children.values())[0]._leaflet_id}];
-                var rightLayer = map._layers[{list(geohash_layer._children.values())[0]._leaflet_id}];
-                L.control.sideBySide(leftLayer, rightLayer).addTo(map);
-            }}, 500);
+                var layers = [];
+                for (var layerId in map._layers) {
+                    var layer = map._layers[layerId];
+                    if (layer.feature && layer.feature.geometry) {
+                        layers.push(layer);
+                    }
+                }
+
+                if (layers.length >= 2) {
+                    L.control.sideBySide(layers[0], layers[1]).addTo(map);
+                }
+            }, 500);
         </script>
     """))
+
 
     st_folium(m, width=1100, height=600)
 
