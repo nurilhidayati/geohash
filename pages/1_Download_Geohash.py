@@ -3,35 +3,47 @@ import folium
 from streamlit_folium import st_folium
 import geopandas as gpd
 import json
+import os
 
 # Konfigurasi halaman
 st.set_page_config(layout="wide")
-st.title("🗺️ Swipe Map: Boundary vs GeoHash")
+st.title("🗺️ Swipe Map: Boundary vs GeoHash by Region")
 
-# Upload dua file
-boundary_file = st.file_uploader("📁 Upload Boundary GeoJSON", type=["geojson"])
-geohash_file = st.file_uploader("📁 Upload GeoHash GeoJSON", type=["geojson"])
+# Load all GeoJSON data from predefined folders
+data_folder = "pages/data"
+province_gdf = gpd.read_file(os.path.join(data_folder, "province_boundary.geojson"))
+regency_gdf = gpd.read_file(os.path.join(data_folder, "regency_boundary.geojson"))
+geohash_gdf = gpd.read_file(os.path.join(data_folder, "geohash_output.geojson"))
 
-if boundary_file and geohash_file:
-    boundary_gdf = gpd.read_file(boundary_file).to_crs("EPSG:4326")
-    geohash_gdf = gpd.read_file(geohash_file).to_crs("EPSG:4326")
+# Dropdown pemilihan provinsi dan kabupaten
+selected_province = st.selectbox("📍 Pilih Provinsi", province_gdf["province_name"].unique())
+filtered_regency = regency_gdf[regency_gdf["province_name"] == selected_province]
+selected_regency = st.selectbox("🏙️ Pilih Kabupaten/Kota", filtered_regency["regency_name"].unique())
 
-    center = boundary_gdf.unary_union.centroid.coords[0][::-1]  # lat, lon
+# Filter berdasarkan pilihan
+boundary_gdf = filtered_regency[filtered_regency["regency_name"] == selected_regency]
 
-    # Convert to GeoJSON string
-    boundary_geojson = json.dumps(json.loads(boundary_gdf.to_json()))
-    geohash_geojson = json.dumps(json.loads(geohash_gdf.to_json()))
+# Clip geohash berdasarkan boundary
+boundary_union = boundary_gdf.geometry.unary_union
+clipped_geohash = geohash_gdf[geohash_gdf.geometry.intersects(boundary_union)]
+
+if not clipped_geohash.empty:
+    center = boundary_union.centroid.coords[0][::-1]  # lat, lon
+
+    # Convert to GeoJSON
+    boundary_geojson = json.dumps(json.loads(boundary_gdf.to_crs("EPSG:4326").to_json()))
+    geohash_geojson = json.dumps(json.loads(clipped_geohash.to_crs("EPSG:4326").to_json()))
 
     # Inisialisasi folium map
     m = folium.Map(location=center, zoom_start=11)
 
-    # Tambahkan placeholder div untuk side-by-side
+    # Tambahkan plugin leaflet side-by-side
     folium.Element("""
-        <link rel="stylesheet" href="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.css"/>
-        <script src="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.js"></script>
+        <link rel=\"stylesheet\" href=\"https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.css\"/>
+        <script src=\"https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.js\"></script>
     """).add_to(m)
 
-    # Tambahkan GeoJSON layer tanpa menampilkannya dulu
+    # Layer
     boundary_layer = folium.GeoJson(
         boundary_geojson,
         name="Boundary",
@@ -46,7 +58,7 @@ if boundary_file and geohash_file:
     boundary_layer.add_to(m)
     geohash_layer.add_to(m)
 
-    # Tambahkan JavaScript untuk Side-by-Side
+    # Tambahkan JavaScript kontrol swipe
     m.get_root().html.add_child(folium.Element(f"""
         <script>
             setTimeout(function() {{
@@ -58,8 +70,8 @@ if boundary_file and geohash_file:
         </script>
     """))
 
-    # Render peta
+    # Tampilkan peta
     st_data = st_folium(m, width=1100, height=600)
 
 else:
-    st.info("⬆️ Upload dua file GeoJSON untuk melihat peta geser (swipe map).")
+    st.warning("⚠️ Tidak ada data GeoHash untuk wilayah yang dipilih.")
