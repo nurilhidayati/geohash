@@ -4,45 +4,71 @@ from streamlit_folium import st_folium
 import geopandas as gpd
 import json
 import os
+import geohash2
+from shapely.geometry import box
 
-# Konfigurasi halaman
+# Fungsi bantu: buat polygon dari geohash
+def geohash_to_polygon(g):
+    lat, lon, lat_err, lon_err = geohash2.decode_exactly(g)
+    return box(lon - lon_err, lat - lat_err, lon + lon_err, lat + lat_err)
+
+# Fungsi generate geohash dari boundary
+def generate_geohash6_from_boundary(gdf, precision=6):
+    bounds = gdf.total_bounds  # minx, miny, maxx, maxy
+    minx, miny, maxx, maxy = bounds
+    step = 0.01  # ~1km step
+    geohash_set = set()
+
+    lat = miny
+    while lat < maxy:
+        lon = minx
+        while lon < maxx:
+            g = geohash2.encode(lat, lon, precision)
+            geohash_set.add(g)
+            lon += step
+        lat += step
+
+    geohash_polygons = [geohash_to_polygon(g) for g in geohash_set]
+    geohash_gdf = gpd.GeoDataFrame({'geohash': list(geohash_set)}, geometry=geohash_polygons, crs="EPSG:4326")
+    geohash_gdf = geohash_gdf[geohash_gdf.geometry.intersects(gdf.unary_union)]
+    return geohash_gdf
+
+# Konfigurasi Streamlit
 st.set_page_config(layout="wide")
-st.title("🗺️ Swipe Map: Boundary vs GeoHash by Region")
+st.title("🗺️ Swipe Map: Boundary vs GeoHash6 (Auto Convert)")
 
-# Load all GeoJSON data from predefined folders
-province_gdf = gpd.read_file(os.path.join( "pages/batas_admin_provinsi.geojson"))
-regency_gdf = gpd.read_file(os.path.join( "pages/batas_admin_kabupaten.geojson"))
-geohash_gdf = gpd.read_file(os.path.join("geohash_output.geojson"))
+# Load batas wilayah
+province_gdf = gpd.read_file("pages/batas_admin_provinsi.geojson")
+regency_gdf = gpd.read_file("pages/batas_admin_kabupaten.geojson")
 
-# Dropdown pemilihan provinsi dan kabupaten
+# Pilihan user
 selected_province = st.selectbox("📍 Pilih Provinsi", province_gdf["province_name"].unique())
 filtered_regency = regency_gdf[regency_gdf["province_name"] == selected_province]
 selected_regency = st.selectbox("🏙️ Pilih Kabupaten/Kota", filtered_regency["regency_name"].unique())
 
-# Filter berdasarkan pilihan
+# Ambil boundary
 boundary_gdf = filtered_regency[filtered_regency["regency_name"] == selected_regency]
 
-# Clip geohash berdasarkan boundary
-boundary_union = boundary_gdf.geometry.unary_union
-clipped_geohash = geohash_gdf[geohash_gdf.geometry.intersects(boundary_union)]
+# Konversi ke geohash6
+geohash6_gdf = generate_geohash6_from_boundary(boundary_gdf, precision=6)
 
-if not clipped_geohash.empty:
-    center = boundary_union.centroid.coords[0][::-1]  # lat, lon
+if not geohash6_gdf.empty:
+    center = boundary_gdf.unary_union.centroid.coords[0][::-1]
 
-    # Convert to GeoJSON
-    boundary_geojson = json.dumps(json.loads(boundary_gdf.to_crs("EPSG:4326").to_json()))
-    geohash_geojson = json.dumps(json.loads(clipped_geohash.to_crs("EPSG:4326").to_json()))
+    # Konversi GeoDataFrame ke GeoJSON
+    boundary_geojson = json.loads(boundary_gdf.to_crs("EPSG:4326").to_json())
+    geohash_geojson = json.loads(geohash6_gdf.to_crs("EPSG:4326").to_json())
 
-    # Inisialisasi folium map
+    # Inisialisasi Folium Map
     m = folium.Map(location=center, zoom_start=11)
 
-    # Tambahkan plugin leaflet side-by-side
+    # Tambahkan leaflet plugin side-by-side
     folium.Element("""
-        <link rel=\"stylesheet\" href=\"https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.css\"/>
-        <script src=\"https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.js\"></script>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.css"/>
+        <script src="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.js"></script>
     """).add_to(m)
 
-    # Layer
+    # Tambahkan layer
     boundary_layer = folium.GeoJson(
         boundary_geojson,
         name="Boundary",
@@ -50,14 +76,13 @@ if not clipped_geohash.empty:
     )
     geohash_layer = folium.GeoJson(
         geohash_geojson,
-        name="GeoHash",
+        name="GeoHash6",
         style_function=lambda x: {"fillColor": "#ff6600", "color": "#ff6600", "weight": 1, "fillOpacity": 0.3},
     )
-
     boundary_layer.add_to(m)
     geohash_layer.add_to(m)
 
-    # Tambahkan JavaScript kontrol swipe
+    # Tambahkan swipe control
     m.get_root().html.add_child(folium.Element(f"""
         <script>
             setTimeout(function() {{
@@ -69,8 +94,12 @@ if not clipped_geohash.empty:
         </script>
     """))
 
-    # Tampilkan peta
-    st_data = st_folium(m, width=1100, height=600)
+    # Tampilkan di Streamlit
+    st_folium(m, width=1100, height=600)
+
+    # Tombol download hasil GeoHash6
+    geojson_str = geohash6_gdf.to_json()
+    st.download_button("📥 Download GeoHash6", data=geojson_str, file_name="geohash6_output.geojson", mime="application/geo+json")
 
 else:
-    st.warning("⚠️ Tidak ada data GeoHash untuk wilayah yang dipilih.")
+    st.warning("⚠️ Tidak ada GeoHash6 dalam boundary yang dipilih.")
