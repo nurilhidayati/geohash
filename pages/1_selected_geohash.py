@@ -10,8 +10,8 @@ from collections import Counter
 def select_dense_geohash_from_uploaded_boundary(
     file, 
     tag_filters, 
-    precision=6, 
-    top_percent=0.5
+    top_percent=0.5,
+    precision=6  # Fixed to geohash6
 ):
     boundary_gdf = gpd.read_file(file).to_crs("EPSG:4326")
     polygon = boundary_gdf.unary_union
@@ -102,11 +102,13 @@ def select_dense_geohash_from_uploaded_boundary(
 
     return dense_gdf
 
-# STREAMLIT INTERFACE
-st.title("🧭 Select Dense Geohash from Boundary")
-uploaded_file = st.file_uploader("Upload GeoJSON Boundary", type=["geojson", "json"])
-precision = st.slider("Geohash Precision", 4, 7, 6)
-top_percent = st.slider("Top Percent for Dense Geohash", 0.1, 1.0, 0.5)
+# =============================
+# STREAMLIT APP UI STARTS HERE
+# =============================
+
+st.title("🧭 Select Dense Geohash (Fixed Geohash6)")
+uploaded_file = st.file_uploader("📁 Upload GeoJSON Boundary", type=["geojson", "json"])
+top_percent = st.slider("📊 Top Percent for Dense Geohash", 0.1, 1.0, 0.5)
 
 default_tags = [
     'shop', 'restaurant', 'fast_food', 'cafe', 'food_court',
@@ -122,19 +124,30 @@ if uploaded_file and st.button("🚀 Run Extraction"):
     result_gdf = select_dense_geohash_from_uploaded_boundary(
         uploaded_file,
         tag_filters=default_tags,
-        precision=precision,
-        top_percent=top_percent
+        top_percent=top_percent,
+        precision=6
     )
 
     if result_gdf is not None:
         st.success("✅ Geohash padat berhasil diekstrak.")
-        st.map(result_gdf)
 
+        # Tampilkan sebagai titik tengah
+        map_df = result_gdf.copy()
+        map_df['center'] = map_df.geometry.representative_point()
+        map_df['lat'] = map_df['center'].y
+        map_df['lon'] = map_df['center'].x
+        st.map(map_df[['lat', 'lon']])
+
+        # Tampilkan tabel preview
+        st.dataframe(result_gdf[['geohash', 'count']])
+
+        # Tombol download
         buffer = BytesIO()
         result_gdf.to_file(buffer, driver="GeoJSON")
         buffer.seek(0)
+
         st.download_button(
-            label="💾 Download Dense Geohash GeoJSON",
+            label="💾 Download Selected Geohash (GeoJSON)",
             data=buffer,
             file_name="dense_osm_geohash.geojson",
             mime="application/geo+json"
