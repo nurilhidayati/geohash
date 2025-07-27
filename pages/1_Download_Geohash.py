@@ -10,10 +10,9 @@ st.set_page_config(layout="wide")
 st.title("🗺️ Swipe Map: Boundary vs GeoHash by Region")
 
 # Load all GeoJSON data from predefined folders
-data_folder = "pages/"
-province_gdf = gpd.read_file(os.path.join(data_folder, "pages/batas_admin_provinsi.geojson"))
-regency_gdf = gpd.read_file(os.path.join(data_folder, "pages/batas_admin_kabupaten.geojson"))
-geohash_gdf = gpd.read_file(os.path.join(data_folder, "geohash_output.geojson"))
+province_gdf = gpd.read_file(os.path.join( "pages/batas_admin_provinsi.geojson"))
+regency_gdf = gpd.read_file(os.path.join( "pages/batas_admin_kabupaten.geojson"))
+geohash_gdf = gpd.read_file(os.path.join("geohash_output.geojson"))
 
 # Dropdown pemilihan provinsi dan kabupaten
 selected_province = st.selectbox("📍 Pilih Provinsi", province_gdf["province_name"].unique())
