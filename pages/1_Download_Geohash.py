@@ -13,9 +13,9 @@ def geohash_to_polygon(g):
 
 # Fungsi generate geohash dari boundary
 def generate_geohash6_from_boundary(gdf, precision=6):
-    bounds = gdf.total_bounds  # minx, miny, maxx, maxy
+    bounds = gdf.total_bounds
     minx, miny, maxx, maxy = bounds
-    step = 0.01  # ~1km step
+    step = 0.01  # ~1km
     geohash_set = set()
 
     lat = miny
@@ -40,32 +40,33 @@ st.title("🗺️ Swipe Map: Boundary vs GeoHash6 (Auto Convert)")
 province_gdf = gpd.read_file("pages/batas_admin_provinsi.geojson")
 regency_gdf = gpd.read_file("pages/batas_admin_kabupaten.geojson")
 
-# Pilihan user
-province_options = province_gdf["PROVINSI"].unique()
-selected_province = st.selectbox("📍 Pilih Provinsi", province_options)
+# Pilihan input
+province_options = [""] + sorted(province_gdf["PROVINSI"].unique())
+regency_options = [""] + sorted(regency_gdf["WADMKK"].unique())
 
-# Filter kabupaten berdasarkan provinsi
-filtered_regency = regency_gdf[regency_gdf["WADMKK"] == selected_province]
-regency_options = filtered_regency["WADMKK"].unique()
-selected_regency = st.selectbox("🏙️ Pilih Kabupaten/Kota", regency_options)
+col1, col2 = st.columns(2)
+with col1:
+    selected_province = st.selectbox("📍 Pilih Provinsi (Opsional)", province_options)
+with col2:
+    selected_regency = st.selectbox("🏙️ Pilih Kabupaten/Kota (Opsional)", regency_options)
 
-# Ambil boundary kabupaten
-boundary_gdf = filtered_regency[filtered_regency["WADMKK"] == selected_regency]
+# Tentukan boundary_gdf berdasarkan prioritas: Kabupaten > Provinsi
+boundary_gdf = None
+if selected_regency:
+    boundary_gdf = regency_gdf[regency_gdf["WADMKK"] == selected_regency]
+elif selected_province:
+    boundary_gdf = province_gdf[province_gdf["PROVINSI"] == selected_province]
 
-# Konversi ke geohash6
-geohash6_gdf = generate_geohash6_from_boundary(boundary_gdf, precision=6)
-
-if not geohash6_gdf.empty:
+# Proses geohash dan tampilkan peta
+if boundary_gdf is not None and not boundary_gdf.empty:
+    geohash6_gdf = generate_geohash6_from_boundary(boundary_gdf, precision=6)
     center = boundary_gdf.unary_union.centroid.coords[0][::-1]
 
-    # Konversi GeoDataFrame ke GeoJSON
     boundary_geojson = json.loads(boundary_gdf.to_crs("EPSG:4326").to_json())
     geohash_geojson = json.loads(geohash6_gdf.to_crs("EPSG:4326").to_json())
 
-    # Inisialisasi Folium Map
-    m = folium.Map(location=center, zoom_start=11)
+    m = folium.Map(location=center, zoom_start=10)
 
-    # Tambahkan layer
     boundary_layer = folium.GeoJson(
         boundary_geojson,
         name="Boundary",
@@ -79,13 +80,11 @@ if not geohash6_gdf.empty:
     boundary_layer.add_to(m)
     geohash_layer.add_to(m)
 
-    # Tambahkan plugin Leaflet untuk swipe
+    # Swipe Control
     m.get_root().html.add_child(folium.Element("""
         <link rel="stylesheet" href="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.css"/>
         <script src="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.js"></script>
     """))
-
-    # Swipe Control Script
     m.get_root().html.add_child(folium.Element(f"""
         <script>
             setTimeout(function() {{
@@ -97,12 +96,10 @@ if not geohash6_gdf.empty:
         </script>
     """))
 
-    # Tampilkan map di Streamlit
     st_folium(m, width=1100, height=600)
 
-    # Tombol download hasil GeoHash6
     geojson_str = geohash6_gdf.to_json()
     st.download_button("📥 Download GeoHash6", data=geojson_str, file_name="geohash6_output.geojson", mime="application/geo+json")
 
 else:
-    st.warning("⚠️ Tidak ada GeoHash6 dalam boundary yang dipilih.")
+    st.info("Silakan pilih provinsi atau kabupaten/kota untuk melihat GeoHash6.")
