@@ -41,11 +41,11 @@ province_gdf = gpd.read_file("pages/batas_admin_provinsi.geojson")
 regency_gdf = gpd.read_file("pages/batas_admin_kabupaten.geojson")
 
 # Pilihan user
-province_options = province_gdf["WADMPR"].unique()
+province_options = province_gdf["PROVINSI"].unique()
 selected_province = st.selectbox("📍 Pilih Provinsi", province_options)
 
 # Filter kabupaten berdasarkan provinsi
-filtered_regency = regency_gdf[regency_gdf["WADMPR"] == selected_province]
+filtered_regency = regency_gdf[regency_gdf["PROVINSI"] == selected_province]
 regency_options = filtered_regency["WADMKK"].unique()
 selected_regency = st.selectbox("🏙️ Pilih Kabupaten/Kota", regency_options)
 
