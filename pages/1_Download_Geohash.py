@@ -3,7 +3,6 @@ import folium
 from streamlit_folium import st_folium
 import geopandas as gpd
 import json
-import os
 import geohash2
 from shapely.geometry import box
 
@@ -42,12 +41,16 @@ province_gdf = gpd.read_file("pages/batas_admin_provinsi.geojson")
 regency_gdf = gpd.read_file("pages/batas_admin_kabupaten.geojson")
 
 # Pilihan user
-selected_province = st.selectbox("📍 Pilih Provinsi", province_gdf["WADMKK"].unique())
-filtered_regency = regency_gdf[regency_gdf["WADMKK"] == selected_province]
-selected_regency = st.selectbox("🏙️ Pilih Kabupaten/Kota", filtered_regency["WADMKK"].unique())
+province_options = province_gdf["WADMPR"].unique()
+selected_province = st.selectbox("📍 Pilih Provinsi", province_options)
 
-# Ambil boundary
-boundary_gdf = filtered_regency[filtered_regency["regency_name"] == selected_regency]
+# Filter kabupaten berdasarkan provinsi
+filtered_regency = regency_gdf[regency_gdf["WADMPR"] == selected_province]
+regency_options = filtered_regency["WADMKK"].unique()
+selected_regency = st.selectbox("🏙️ Pilih Kabupaten/Kota", regency_options)
+
+# Ambil boundary kabupaten
+boundary_gdf = filtered_regency[filtered_regency["WADMKK"] == selected_regency]
 
 # Konversi ke geohash6
 geohash6_gdf = generate_geohash6_from_boundary(boundary_gdf, precision=6)
@@ -61,12 +64,6 @@ if not geohash6_gdf.empty:
 
     # Inisialisasi Folium Map
     m = folium.Map(location=center, zoom_start=11)
-
-    # Tambahkan leaflet plugin side-by-side
-    folium.Element("""
-        <link rel="stylesheet" href="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.css"/>
-        <script src="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.js"></script>
-    """).add_to(m)
 
     # Tambahkan layer
     boundary_layer = folium.GeoJson(
@@ -82,7 +79,13 @@ if not geohash6_gdf.empty:
     boundary_layer.add_to(m)
     geohash_layer.add_to(m)
 
-    # Tambahkan swipe control
+    # Tambahkan plugin Leaflet untuk swipe
+    m.get_root().html.add_child(folium.Element("""
+        <link rel="stylesheet" href="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.css"/>
+        <script src="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.js"></script>
+    """))
+
+    # Swipe Control Script
     m.get_root().html.add_child(folium.Element(f"""
         <script>
             setTimeout(function() {{
@@ -94,7 +97,7 @@ if not geohash6_gdf.empty:
         </script>
     """))
 
-    # Tampilkan di Streamlit
+    # Tampilkan map di Streamlit
     st_folium(m, width=1100, height=600)
 
     # Tombol download hasil GeoHash6
