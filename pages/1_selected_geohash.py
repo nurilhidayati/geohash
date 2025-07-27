@@ -11,15 +11,15 @@ def select_dense_geohash_from_uploaded_boundary(
     file, 
     tag_filters, 
     top_percent=0.5,
-    precision=6  # Fixed to geohash6
+    precision=6  # Default geohash6
 ):
     boundary_gdf = gpd.read_file(file).to_crs("EPSG:4326")
-    polygon = boundary_gdf.unary_union
+    polygon = boundary_gdf.union_all()
 
     st.info("📡 Fetching POI data...")
     tags_dict = {tag: True for tag in tag_filters}
     try:
-        poi_gdf = ox.geometries_from_polygon(polygon, tags=tags_dict)
+        poi_gdf = ox.features_from_polygon(polygon, tags=tags_dict)
         poi_gdf = poi_gdf[poi_gdf.geometry.type.isin(['Point', 'Polygon', 'MultiPolygon'])]
         poi_gdf = poi_gdf.to_crs("EPSG:4326")
     except Exception as e:
@@ -29,7 +29,7 @@ def select_dense_geohash_from_uploaded_boundary(
     st.info("🚗 Fetching major roads...")
     try:
         road_tags = {'highway': ['motorway', 'trunk', 'primary', 'secondary']}
-        roads_gdf = ox.geometries_from_polygon(polygon, tags=road_tags)
+        roads_gdf = ox.features_from_polygon(polygon, tags=road_tags)
         roads_gdf = roads_gdf[roads_gdf.geometry.type.isin(['LineString', 'MultiLineString'])]
         roads_gdf = roads_gdf.to_crs("EPSG:4326")
     except Exception as e:
@@ -93,7 +93,7 @@ def select_dense_geohash_from_uploaded_boundary(
     }, crs='EPSG:4326')
 
     st.info("🧹 Menghapus outlier geohash yang jauh...")
-    dense_union = dense_gdf.unary_union
+    dense_union = dense_gdf.union_all()
     if dense_union.geom_type == 'MultiPolygon':
         largest = max(dense_union.geoms, key=lambda g: g.area)
     else:
@@ -102,11 +102,12 @@ def select_dense_geohash_from_uploaded_boundary(
 
     return dense_gdf
 
+
 # =============================
 # STREAMLIT APP UI STARTS HERE
 # =============================
 
-st.title("🧭 Select Dense Geohash (Fixed Geohash6)")
+st.title("🧭 Select Dense Geohash (Default Geohash6)")
 uploaded_file = st.file_uploader("📁 Upload GeoJSON Boundary", type=["geojson", "json"])
 top_percent = st.slider("📊 Top Percent for Dense Geohash", 0.1, 1.0, 0.5)
 
@@ -125,23 +126,14 @@ if uploaded_file and st.button("🚀 Run Extraction"):
         uploaded_file,
         tag_filters=default_tags,
         top_percent=top_percent,
-        precision=6
+        precision=6  # Hardcoded, tidak diminta dari user
     )
 
     if result_gdf is not None:
         st.success("✅ Geohash padat berhasil diekstrak.")
-
-        # Tampilkan sebagai titik tengah
-        map_df = result_gdf.copy()
-        map_df['center'] = map_df.geometry.representative_point()
-        map_df['lat'] = map_df['center'].y
-        map_df['lon'] = map_df['center'].x
-        st.map(map_df[['lat', 'lon']])
-
-        # Tampilkan tabel preview
         st.dataframe(result_gdf[['geohash', 'count']])
 
-        # Tombol download
+        # Download button
         buffer = BytesIO()
         result_gdf.to_file(buffer, driver="GeoJSON")
         buffer.seek(0)
