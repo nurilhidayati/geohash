@@ -41,8 +41,9 @@ province_gdf = gpd.read_file("pages/batas_admin_provinsi.geojson")
 regency_gdf = gpd.read_file("pages/batas_admin_kabupaten.geojson")
 
 # Pilihan input
-province_options = [""] + sorted(province_gdf["PROVINSI"].unique())
-regency_options = [""] + sorted(regency_gdf["WADMKK"].unique())
+province_options = [""] + sorted(province_gdf["PROVINSI"].dropna().unique())
+regency_options = [""] + sorted(regency_gdf["WADMKK"].dropna().unique())
+
 
 col1, col2 = st.columns(2)
 with col1:
