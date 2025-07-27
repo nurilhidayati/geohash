@@ -8,8 +8,10 @@ from shapely.geometry import shape, GeometryCollection, box, Polygon
 from shapely.validation import make_valid
 import geohash2
 import pandas as pd
+import geopandas as gpd
 
 # Fungsi bantu untuk bounding map
+
 def get_bounds_from_geojson(geojson):
     bounds = [[90, 180], [-90, -180]]
     for feature in geojson['features']:
@@ -28,7 +30,7 @@ def get_bounds_from_geojson(geojson):
     return bounds
 
 # Fungsi GeoJSON ke GeoHash
-@st.cache_data(show_spinner="⏳ Processing GeoHash...")
+@st.cache_data(show_spinner="\u231b Processing GeoHash...")
 def geojson_to_geohash6(geojson_data, precision=6, step=0.005):
     if 'features' in geojson_data:
         geometries = [shape(feature['geometry']) for feature in geojson_data['features']]
@@ -45,7 +47,6 @@ def geojson_to_geohash6(geojson_data, precision=6, step=0.005):
 
     minx, miny, maxx, maxy = full_geom.bounds
 
-    # Gunakan linspace untuk kurangi jumlah iterasi (lebih cepat)
     x_steps = np.linspace(minx, maxx, int((maxx - minx)/step))
     y_steps = np.linspace(miny, maxy, int((maxy - miny)/step))
 
@@ -95,153 +96,44 @@ def geohash_to_csv(geohashes):
     df = pd.DataFrame(rows)
     return df.to_csv(index=False)
 
-# Setup
-st.set_page_config(layout="wide")
-st.title("🗺️ Download GeoHash")
+# Fungsi bantu render GeoJSON ke folium.Map
+def render_map(geojson, center=[-6.2, 106.8], zoom=12, color="#3186cc"):
+    m = folium.Map(location=center, zoom_start=zoom, tiles="cartodbpositron")
+    folium.GeoJson(
+        geojson,
+        style_function=lambda x: {
+            "fillColor": color,
+            "color": color,
+            "weight": 2,
+            "fillOpacity": 0.4,
+        }
+    ).add_to(m)
+    return m
 
-# Siapkan default map
-m = folium.Map(location=[-2.5, 117.5], zoom_start=5)
+# Streamlit UI
+st.set_page_config(page_title="Split Map Viewer", layout="wide")
+st.title("\ud83d\udea8 Split Map View: Boundary vs Geohash")
 
-# File kabupaten dan provinsi
-kab_file = "pages/batas_admin_kabupaten.geojson"
-prov_file = "pages/batas_admin_provinsi.geojson"
+boundary_file = st.file_uploader("\ud83d\udcc1 Upload Boundary GeoJSON", type=["geojson"])
+geohash_file = st.file_uploader("\ud83d\udcc1 Upload Geohash GeoJSON", type=["geojson"])
 
-# Load GeoJSON
-kab_geojson, prov_geojson = None, None
+if boundary_file and geohash_file:
+    boundary_gdf = gpd.read_file(boundary_file).to_crs("EPSG:4326")
+    geohash_gdf = gpd.read_file(geohash_file).to_crs("EPSG:4326")
 
-if os.path.exists(kab_file):
-    with open(kab_file, "r", encoding="utf-8") as f:
-        kab_geojson = json.load(f)
+    center = boundary_gdf.unary_union.centroid.coords[0][::-1]  # lat, lon
+    zoom = 13
+
+    left_col, right_col = st.columns(2)
+
+    with left_col:
+        st.subheader("\ud83d\udccd Boundary Map")
+        m1 = render_map(boundary_gdf.__geo_interface__, center=center, zoom=zoom, color="#3186cc")
+        st_folium(m1, height=400)
+
+    with right_col:
+        st.subheader("\ud83d\udccd Geohash Map")
+        m2 = render_map(geohash_gdf.__geo_interface__, center=center, zoom=zoom, color="#ff6600")
+        st_folium(m2, height=400)
 else:
-    st.error("❌ File 'batas_admin_kabupaten.geojson' tidak ditemukan")
-
-if os.path.exists(prov_file):
-    with open(prov_file, "r", encoding="utf-8") as f:
-        prov_geojson = json.load(f)
-else:
-    st.error("❌ File 'batas_admin_provinsi.geojson' tidak ditemukan")
-
-# Inisialisasi session_state
-for key in ["selected_kabupaten", "selected_provinsi", "has_searched", "geojson_result"]:
-    if key not in st.session_state:
-        st.session_state[key] = None if key != "has_searched" else False
-
-# === Dropdown dan Tombol Cari dalam satu baris ===
-col1, col2, col3 = st.columns([5, 5, 1.5])
-
-with col1:
-    selected_kabupaten = None
-    if kab_geojson:
-        kabupaten_list = sorted({f["properties"].get("WADMKK") for f in kab_geojson["features"] if f["properties"].get("WADMKK")})
-        selected_kabupaten = st.selectbox("🏙️ Select Regency:", ["-- Select Regency --"] + kabupaten_list)
-
-with col2:
-    selected_provinsi = None
-    if prov_geojson:
-        provinsi_list = sorted({f["properties"].get("PROVINSI") for f in prov_geojson["features"] if f["properties"].get("PROVINSI")})
-        selected_provinsi = st.selectbox("🏞️ Select Province:", ["-- Select Province --"] + provinsi_list)
-
-with col3:
-    st.markdown("<br>", unsafe_allow_html=True)  # Spasi vertikal agar tombol sejajar
-    if st.button("🔍 Search"):
-        if selected_kabupaten and selected_kabupaten != "-- Select Regency --":
-            st.session_state.selected_kabupaten = selected_kabupaten
-            st.session_state.selected_provinsi = None
-            st.session_state.has_searched = True
-        elif selected_provinsi and selected_provinsi != "-- Select Province --":
-            st.session_state.selected_provinsi = selected_provinsi
-            st.session_state.selected_kabupaten = None
-            st.session_state.has_searched = True
-
-
-# Proses hasil pencarian
-if st.session_state.has_searched:
-    selected_geojson = None
-    layer_name = ""
-
-    if st.session_state.selected_kabupaten:
-        filtered_kab = [
-            f for f in kab_geojson["features"]
-            if f["properties"].get("WADMKK") == st.session_state.selected_kabupaten
-        ]
-        selected_geojson = {"type": "FeatureCollection", "features": filtered_kab}
-        layer_name = st.session_state.selected_kabupaten
-        if filtered_kab:
-            m.fit_bounds(get_bounds_from_geojson(selected_geojson))
-
-    elif st.session_state.selected_provinsi:
-        filtered_prov = [
-            f for f in prov_geojson["features"]
-            if f["properties"].get("PROVINSI") == st.session_state.selected_provinsi
-        ]
-        selected_geojson = {"type": "FeatureCollection", "features": filtered_prov}
-        layer_name = st.session_state.selected_provinsi
-        if filtered_prov:
-            m.fit_bounds(get_bounds_from_geojson(selected_geojson))
-
-    st.session_state.geojson_result = selected_geojson
-
-    if selected_geojson:
-        name = layer_name.replace(" ", "_").lower()
-
-        # Generate GeoHash
-        geohashes = geojson_to_geohash6(selected_geojson)
-        geohash_geojson = geohash6_to_geojson(geohashes)
-
-        # ✅ Tampilkan hanya GeoHash di peta
-                # Layer untuk boundary
-        boundary_layer = folium.FeatureGroup(name="Boundary")
-        folium.GeoJson(
-            selected_geojson,
-            name="Selected Boundary",
-            style_function=lambda x: {"color": "blue", "weight": 2, "fillOpacity": 0.1}
-        ).add_to(boundary_layer)
-
-        # Layer untuk GeoHash
-        geohash_layer = folium.FeatureGroup(name="GeoHash6")
-        folium.GeoJson(
-            geohash_geojson,
-            name="GeoHash6",
-            style_function=lambda x: {"color": "#ff6600", "weight": 1, "fillOpacity": 0.3}
-        ).add_to(geohash_layer)
-
-        # Tambahkan kedua layer ke peta
-        boundary_layer.add_to(m)
-        geohash_layer.add_to(m)
-        folium.LayerControl(collapsed=False).add_to(m)
-
-
-        # === Tombol download
-        col1, col2 = st.columns([5, 5])
-        with col1:
-            # Download geohash
-            geohash_str = json.dumps(geohash_geojson, ensure_ascii=False, indent=2)
-            st.download_button(
-                label="📥 Download GeoHash6",
-                data=geohash_str,
-                file_name=f"{name}_geohash6.geojson",
-                mime="application/geo+json"
-            )
-        with col2:
-            geohash_csv = geohash_to_csv(geohashes)
-            st.download_button(
-                label="📄 Download GeoHash6 CSV",
-                data=geohash_csv,
-                file_name=f"{name}_geohash6.csv",
-                mime="text/csv"
-            )
-
-
-# Tampilkan map
-st_data = st_folium(m, width=1200, height=600)
-
-# Footer
-st.markdown(
-    """
-    <hr style="margin-top: 2rem; margin-bottom: 1rem;">
-    <div style='text-align: center; color: grey; font-size: 0.9rem;'>
-        © 2025 ID Karta IoT Team
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+    st.info("\u2b06\ufe0f Upload dua file GeoJSON untuk melihat perbandingan peta.")
