@@ -14,7 +14,7 @@ def select_dense_geohash_from_uploaded_boundary(
     precision=6  # Default geohash6
 ):
     boundary_gdf = gpd.read_file(file).to_crs("EPSG:4326")
-    polygon = boundary_gdf.union_all()
+    polygon = boundary_gdf.unary_union
 
     st.info("📡 Fetching POI data...")
     tags_dict = {tag: True for tag in tag_filters}
@@ -93,7 +93,7 @@ def select_dense_geohash_from_uploaded_boundary(
     }, crs='EPSG:4326')
 
     st.info("🧹 Menghapus outlier geohash yang jauh...")
-    dense_union = dense_gdf.union_all()
+    dense_union = dense_gdf.unary_union
     if dense_union.geom_type == 'MultiPolygon':
         largest = max(dense_union.geoms, key=lambda g: g.area)
     else:
@@ -102,23 +102,17 @@ def select_dense_geohash_from_uploaded_boundary(
 
     return dense_gdf
 
-
-# =============================
+# ================================
 # STREAMLIT APP UI STARTS HERE
-# =============================
+# ================================
 
-st.title("🧭 Select Dense Geohash (Default Geohash6)")
+st.title("🧭 Select Dense Geohash (Fixed Geohash6)")
+
 uploaded_file = st.file_uploader("📁 Upload GeoJSON Boundary", type=["geojson", "json"])
-top_percent = st.slider("📊 Top Percent for Dense Geohash", 0.1, 1.0, 0.5)
+top_percent = 0.5  # Fixed value, not user-adjustable
 
 default_tags = [
-    'shop', 'restaurant', 'fast_food', 'cafe', 'food_court',
-    'bakery', 'convenience', 'supermarket', 'marketplace',
-    'residential', 'building', 'commercial', 'retail',
-    'bank', 'atm', 'clinic', 'pharmacy', 'hospital',
-    'school', 'college', 'university',
-    'parking', 'taxi', 'car_rental',
-    'bus_station', 'bus_stop'
+    'building', 'commercial'
 ]
 
 if uploaded_file and st.button("🚀 Run Extraction"):
@@ -126,14 +120,16 @@ if uploaded_file and st.button("🚀 Run Extraction"):
         uploaded_file,
         tag_filters=default_tags,
         top_percent=top_percent,
-        precision=6  # Hardcoded, tidak diminta dari user
+        precision=6
     )
 
     if result_gdf is not None:
         st.success("✅ Geohash padat berhasil diekstrak.")
+
+        # Tampilkan tabel preview
         st.dataframe(result_gdf[['geohash', 'count']])
 
-        # Download button
+        # Tombol download
         buffer = BytesIO()
         result_gdf.to_file(buffer, driver="GeoJSON")
         buffer.seek(0)
