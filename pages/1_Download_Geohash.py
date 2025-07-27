@@ -42,9 +42,9 @@ province_gdf = gpd.read_file("pages/batas_admin_provinsi.geojson")
 regency_gdf = gpd.read_file("pages/batas_admin_kabupaten.geojson")
 
 # Pilihan user
-selected_province = st.selectbox("📍 Pilih Provinsi", province_gdf["province_name"].unique())
-filtered_regency = regency_gdf[regency_gdf["province_name"] == selected_province]
-selected_regency = st.selectbox("🏙️ Pilih Kabupaten/Kota", filtered_regency["regency_name"].unique())
+selected_province = st.selectbox("📍 Pilih Provinsi", province_gdf["WADMKK"].unique())
+filtered_regency = regency_gdf[regency_gdf["WADMKK"] == selected_province]
+selected_regency = st.selectbox("🏙️ Pilih Kabupaten/Kota", filtered_regency["WADMKK"].unique())
 
 # Ambil boundary
 boundary_gdf = filtered_regency[filtered_regency["regency_name"] == selected_regency]
