@@ -189,11 +189,27 @@ if st.session_state.has_searched:
         geohash_geojson = geohash6_to_geojson(geohashes)
 
         # ✅ Tampilkan hanya GeoHash di peta
+                # Layer untuk boundary
+        boundary_layer = folium.FeatureGroup(name="Boundary")
+        folium.GeoJson(
+            selected_geojson,
+            name="Selected Boundary",
+            style_function=lambda x: {"color": "blue", "weight": 2, "fillOpacity": 0.1}
+        ).add_to(boundary_layer)
+
+        # Layer untuk GeoHash
+        geohash_layer = folium.FeatureGroup(name="GeoHash6")
         folium.GeoJson(
             geohash_geojson,
             name="GeoHash6",
             style_function=lambda x: {"color": "#ff6600", "weight": 1, "fillOpacity": 0.3}
-        ).add_to(m)
+        ).add_to(geohash_layer)
+
+        # Tambahkan kedua layer ke peta
+        boundary_layer.add_to(m)
+        geohash_layer.add_to(m)
+        folium.LayerControl(collapsed=False).add_to(m)
+
 
         # === Tombol download
         col1, col2 = st.columns([5, 5])
