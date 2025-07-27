@@ -230,6 +230,58 @@ if st.session_state.has_searched:
                 file_name=f"{name}_geohash6.csv",
                 mime="text/csv"
             )
+import streamlit as st
+import geopandas as gpd
+import folium
+from streamlit_folium import st_folium
+
+# Fungsi bantu render GeoJSON ke folium.Map
+def render_map(geojson, center=[-6.2, 106.8], zoom=12, color="#3186cc"):
+    m = folium.Map(location=center, zoom_start=zoom, tiles="cartodbpositron")
+    folium.GeoJson(
+        geojson,
+        style_function=lambda x: {
+            "fillColor": color,
+            "color": color,
+            "weight": 2,
+            "fillOpacity": 0.4,
+        }
+    ).add_to(m)
+    return m
+
+# =====================
+# Streamlit UI starts here
+# =====================
+
+st.set_page_config(page_title="Split Map Viewer", layout="wide")
+st.title("🗺️ Split Map View: Boundary vs Geohash")
+
+# Upload file boundary dan geohash
+boundary_file = st.file_uploader("📁 Upload Boundary GeoJSON", type=["geojson"])
+geohash_file = st.file_uploader("📁 Upload Geohash GeoJSON", type=["geojson"])
+
+if boundary_file and geohash_file:
+    boundary_gdf = gpd.read_file(boundary_file).to_crs("EPSG:4326")
+    geohash_gdf = gpd.read_file(geohash_file).to_crs("EPSG:4326")
+
+    # Ambil titik tengah dari boundary
+    center = boundary_gdf.unary_union.centroid.coords[0][::-1]  # lat, lon
+    zoom = 13
+
+    # Split dua kolom: kiri dan kanan
+    left_col, right_col = st.columns(2)
+
+    with left_col:
+        st.subheader("📍 Boundary Map")
+        m1 = render_map(boundary_gdf.__geo_interface__, center=center, zoom=zoom, color="#3186cc")
+        st_folium(m1, height=400)
+
+    with right_col:
+        st.subheader("📍 Geohash Map")
+        m2 = render_map(geohash_gdf.__geo_interface__, center=center, zoom=zoom, color="#ff6600")
+        st_folium(m2, height=400)
+else:
+    st.info("⬆️ Upload dua file GeoJSON untuk melihat perbandingan peta.")
 
 
 # Tampilkan map
