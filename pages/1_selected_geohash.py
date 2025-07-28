@@ -87,7 +87,7 @@ def select_dense_geohash_from_uploaded_boundary(
         ])
 
     dense_gdf = gpd.GeoDataFrame({
-        'geohash': dense_df['geohash'],
+        'geoHash': dense_df['geohash'],
         'count': dense_df['count'],
         'geometry': dense_df['geohash'].apply(geohash_to_polygon)
     }, crs='EPSG:4326')
