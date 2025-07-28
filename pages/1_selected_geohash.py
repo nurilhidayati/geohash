@@ -109,13 +109,12 @@ def select_dense_geohash_from_uploaded_boundary(
 st.title("🧭 Select Dense Geohash (Fixed Geohash6)")
 
 uploaded_file = st.file_uploader("📁 Upload GeoJSON Boundary", type=["geojson", "json"])
-top_percent = 0.5  # Fixed value, not user-adjustable
+top_percent = 0.5  # Fixed value
 
-default_tags = [
-    'building', 'commercial'
-]
+default_tags = ['building', 'commercial']
 
 if uploaded_file and st.button("🚀 Run Extraction"):
+    st.session_state.download_ready = False  # Reset download status
     result_gdf = select_dense_geohash_from_uploaded_boundary(
         uploaded_file,
         tag_filters=default_tags,
@@ -124,19 +123,21 @@ if uploaded_file and st.button("🚀 Run Extraction"):
     )
 
     if result_gdf is not None:
+        st.session_state.result_gdf = result_gdf
+        st.session_state.download_ready = True
         st.success("✅ Geohash padat berhasil diekstrak.")
 
-        # Tampilkan tabel preview
-        st.dataframe(result_gdf[['geoHash', 'count']])
+# Menampilkan tabel dan tombol download hanya jika sudah ada hasil
+if st.session_state.download_ready and st.session_state.result_gdf is not None:
+    st.dataframe(st.session_state.result_gdf[['geoHash', 'count']])
 
-        # Tombol download
-        buffer = BytesIO()
-        result_gdf.to_file(buffer, driver="GeoJSON")
-        buffer.seek(0)
+    buffer = BytesIO()
+    st.session_state.result_gdf.to_file(buffer, driver="GeoJSON")
+    buffer.seek(0)
 
-        st.download_button(
-            label="💾 Download Selected Geohash (GeoJSON)",
-            data=buffer,
-            file_name="dense_osm_geohash.geojson",
-            mime="application/geo+json"
-        )
+    st.download_button(
+        label="💾 Download Selected Geohash (GeoJSON)",
+        data=buffer,
+        file_name="dense_osm_geohash.geojson",
+        mime="application/geo+json"
+    )
