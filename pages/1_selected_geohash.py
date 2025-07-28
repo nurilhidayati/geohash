@@ -127,7 +127,7 @@ if uploaded_file and st.button("🚀 Run Extraction"):
         st.success("✅ Geohash padat berhasil diekstrak.")
 
         # Tampilkan tabel preview
-        st.dataframe(result_gdf[['geohash', 'count']])
+        st.dataframe(result_gdf[['geoHash', 'count']])
 
         # Tombol download
         buffer = BytesIO()
