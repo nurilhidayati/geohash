@@ -1,115 +1,231 @@
 import streamlit as st
+import json
 import folium
 from streamlit_folium import st_folium
-import geopandas as gpd
-import json
+import os
+import numpy as np
+from shapely.geometry import shape, GeometryCollection, box, Polygon
+from shapely.validation import make_valid
 import geohash2
-from shapely.geometry import box
+import pandas as pd
 
-# Fungsi bantu: buat polygon dari geohash
-def geohash_to_polygon(g):
-    lat, lon, lat_err, lon_err = geohash2.decode_exactly(g)
-    return box(lon - lon_err, lat - lat_err, lon + lon_err, lat + lat_err)
+# Fungsi bantu untuk bounding map
+def get_bounds_from_geojson(geojson):
+    bounds = [[90, 180], [-90, -180]]
+    for feature in geojson['features']:
+        coords = feature['geometry']['coordinates']
+        if feature['geometry']['type'] == 'Polygon':
+            rings = [coords]
+        else:  # MultiPolygon
+            rings = coords
+        for ring in rings:
+            for point in ring[0]:
+                lon, lat = point
+                bounds[0][0] = min(bounds[0][0], lat)
+                bounds[0][1] = min(bounds[0][1], lon)
+                bounds[1][0] = max(bounds[1][0], lat)
+                bounds[1][1] = max(bounds[1][1], lon)
+    return bounds
 
-# Fungsi generate geohash dari boundary
-def generate_geohash6_from_boundary(gdf, precision=6):
-    bounds = gdf.total_bounds
-    minx, miny, maxx, maxy = bounds
-    step = 0.01  # ~1km
-    geohash_set = set()
+# Fungsi GeoJSON ke GeoHash
+@st.cache_data(show_spinner="⏳ Processing GeoHash...")
+def geojson_to_geohash6(geojson_data, precision=6, step=0.005):
+    if 'features' in geojson_data:
+        geometries = [shape(feature['geometry']) for feature in geojson_data['features']]
+    elif 'geometry' in geojson_data:
+        geometries = [shape(geojson_data['geometry'])]
+    elif 'type' in geojson_data and 'coordinates' in geojson_data:
+        geometries = [shape(geojson_data)]
+    else:
+        raise ValueError("Unsupported GeoJSON structure")
 
-    lat = miny
-    while lat < maxy:
-        lon = minx
-        while lon < maxx:
-            g = geohash2.encode(lat, lon, precision)
-            geohash_set.add(g)
-            lon += step
-        lat += step
+    full_geom = GeometryCollection(geometries) if len(geometries) > 1 else geometries[0]
+    if not full_geom.is_valid:
+        full_geom = make_valid(full_geom)
 
-    geohash_polygons = [geohash_to_polygon(g) for g in geohash_set]
-    geohash_gdf = gpd.GeoDataFrame({'geohash': list(geohash_set)}, geometry=geohash_polygons, crs="EPSG:4326")
-    geohash_gdf = geohash_gdf[geohash_gdf.geometry.intersects(gdf.unary_union)]
-    return geohash_gdf
+    minx, miny, maxx, maxy = full_geom.bounds
 
-# Konfigurasi Streamlit
+    # Gunakan linspace untuk kurangi jumlah iterasi (lebih cepat)
+    x_steps = np.linspace(minx, maxx, int((maxx - minx)/step))
+    y_steps = np.linspace(miny, maxy, int((maxy - miny)/step))
+
+    geohashes = set()
+    for lat in y_steps:
+        for lon in x_steps:
+            cell = box(lon, lat, lon + step, lat + step)
+            if full_geom.intersects(cell):
+                gh = geohash2.encode(lat, lon, precision)
+                geohashes.add(gh)
+    return geohashes
+
+# Fungsi GeoHash ke GeoJSON
+def geohash6_to_geojson(geohashes):
+    features = []
+    for gh in geohashes:
+        lat, lon, lat_err, lon_err = geohash2.decode_exactly(gh)
+        cell = {
+            "n": lat + lat_err,
+            "s": lat - lat_err,
+            "e": lon + lon_err,
+            "w": lon - lon_err,
+        }
+        poly = Polygon([
+            (cell['w'], cell['s']),
+            (cell['e'], cell['s']),
+            (cell['e'], cell['n']),
+            (cell['w'], cell['n']),
+            (cell['w'], cell['s']),
+        ])
+        features.append({
+            "type": "Feature",
+            "geometry": json.loads(json.dumps(poly.__geo_interface__)),
+            "properties": {"Name": gh}
+        })
+
+    return {
+        "type": "FeatureCollection",
+        "features": features
+    }
+
+def geohash_to_csv(geohashes):
+    rows = []
+    for gh in geohashes:
+        lat, lon, _, _ = geohash2.decode_exactly(gh)
+        rows.append({"geohash": gh, "lat": lat, "lon": lon})
+    df = pd.DataFrame(rows)
+    return df.to_csv(index=False)
+
+# Setup
 st.set_page_config(layout="wide")
-st.title("🗺️ Swipe Map: Boundary vs GeoHash6 (Auto Convert)")
+st.title("🗺️ Download GeoHash")
 
-# Load batas wilayah
-province_gdf = gpd.read_file("pages/batas_admin_provinsi.geojson")
-regency_gdf = gpd.read_file("pages/batas_admin_kabupaten.geojson")
+# Siapkan default map
+m = folium.Map(location=[-2.5, 117.5], zoom_start=5)
 
-# Pilihan input
-province_options = [""] + sorted(province_gdf["PROVINSI"].dropna().unique())
-regency_options = [""] + sorted(regency_gdf["WADMKK"].dropna().unique())
+# File kabupaten dan provinsi
+kab_file = "pages/batas_admin_kabupaten.geojson"
+prov_file = "pages/batas_admin_provinsi.geojson"
 
+# Load GeoJSON
+kab_geojson, prov_geojson = None, None
 
-col1, col2 = st.columns(2)
-with col1:
-    selected_province = st.selectbox("📍 Pilih Provinsi (Opsional)", province_options)
-with col2:
-    selected_regency = st.selectbox("🏙️ Pilih Kabupaten/Kota (Opsional)", regency_options)
-
-# Tentukan boundary_gdf berdasarkan prioritas: Kabupaten > Provinsi
-boundary_gdf = None
-if selected_regency:
-    boundary_gdf = regency_gdf[regency_gdf["WADMKK"] == selected_regency]
-elif selected_province:
-    boundary_gdf = province_gdf[province_gdf["PROVINSI"] == selected_province]
-
-# Proses geohash dan tampilkan peta
-if boundary_gdf is not None and not boundary_gdf.empty:
-    geohash6_gdf = generate_geohash6_from_boundary(boundary_gdf, precision=6)
-    center = boundary_gdf.unary_union.centroid.coords[0][::-1]
-
-    boundary_geojson = json.loads(boundary_gdf.to_crs("EPSG:4326").to_json())
-    geohash_geojson = json.loads(geohash6_gdf.to_crs("EPSG:4326").to_json())
-
-    m = folium.Map(location=center, zoom_start=10)
-
-    boundary_layer = folium.GeoJson(
-        boundary_geojson,
-        name="Boundary",
-        style_function=lambda x: {"fillColor": "#3186cc", "color": "#3186cc", "weight": 2, "fillOpacity": 0.4},
-    )
-    geohash_layer = folium.GeoJson(
-        geohash_geojson,
-        name="GeoHash6",
-        style_function=lambda x: {"fillColor": "#ff6600", "color": "#ff6600", "weight": 1, "fillOpacity": 0.3},
-    )
-    boundary_layer.add_to(m)
-    geohash_layer.add_to(m)
-
-    # Swipe Control
-    m.get_root().html.add_child(folium.Element("""
-        <link rel="stylesheet" href="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.css"/>
-        <script src="https://unpkg.com/leaflet-side-by-side/leaflet-side-by-side.js"></script>
-    """))
-    m.get_root().html.add_child(folium.Element("""
-        <script>
-            setTimeout(function() {
-                var map = window.map;
-                var layers = [];
-                for (var layerId in map._layers) {
-                    var layer = map._layers[layerId];
-                    if (layer.feature && layer.feature.geometry) {
-                        layers.push(layer);
-                    }
-                }
-
-                if (layers.length >= 2) {
-                    L.control.sideBySide(layers[0], layers[1]).addTo(map);
-                }
-            }, 500);
-        </script>
-    """))
-
-
-    st_folium(m, width=1100, height=600)
-
-    geojson_str = geohash6_gdf.to_json()
-    st.download_button("📥 Download GeoHash6", data=geojson_str, file_name="geohash6_output.geojson", mime="application/geo+json")
-
+if os.path.exists(kab_file):
+    with open(kab_file, "r", encoding="utf-8") as f:
+        kab_geojson = json.load(f)
 else:
-    st.info("Silakan pilih provinsi atau kabupaten/kota untuk melihat GeoHash6.")
+    st.error("❌ File 'batas_admin_kabupaten.geojson' tidak ditemukan")
+
+if os.path.exists(prov_file):
+    with open(prov_file, "r", encoding="utf-8") as f:
+        prov_geojson = json.load(f)
+else:
+    st.error("❌ File 'batas_admin_provinsi.geojson' tidak ditemukan")
+
+# Inisialisasi session_state
+for key in ["selected_kabupaten", "selected_provinsi", "has_searched", "geojson_result"]:
+    if key not in st.session_state:
+        st.session_state[key] = None if key != "has_searched" else False
+
+# === Dropdown dan Tombol Cari dalam satu baris ===
+col1, col2, col3 = st.columns([5, 5, 1.5])
+
+with col1:
+    selected_kabupaten = None
+    if kab_geojson:
+        kabupaten_list = sorted({f["properties"].get("WADMKK") for f in kab_geojson["features"] if f["properties"].get("WADMKK")})
+        selected_kabupaten = st.selectbox("🏙️ Select Regency:", ["-- Select Regency --"] + kabupaten_list)
+
+with col2:
+    selected_provinsi = None
+    if prov_geojson:
+        provinsi_list = sorted({f["properties"].get("PROVINSI") for f in prov_geojson["features"] if f["properties"].get("PROVINSI")})
+        selected_provinsi = st.selectbox("🏞️ Select Province:", ["-- Select Province --"] + provinsi_list)
+
+with col3:
+    st.markdown("<br>", unsafe_allow_html=True)  # Spasi vertikal agar tombol sejajar
+    if st.button("🔍 Search"):
+        if selected_kabupaten and selected_kabupaten != "-- Select Regency --":
+            st.session_state.selected_kabupaten = selected_kabupaten
+            st.session_state.selected_provinsi = None
+            st.session_state.has_searched = True
+        elif selected_provinsi and selected_provinsi != "-- Select Province --":
+            st.session_state.selected_provinsi = selected_provinsi
+            st.session_state.selected_kabupaten = None
+            st.session_state.has_searched = True
+
+
+# Proses hasil pencarian
+if st.session_state.has_searched:
+    selected_geojson = None
+    layer_name = ""
+
+    if st.session_state.selected_kabupaten:
+        filtered_kab = [
+            f for f in kab_geojson["features"]
+            if f["properties"].get("WADMKK") == st.session_state.selected_kabupaten
+        ]
+        selected_geojson = {"type": "FeatureCollection", "features": filtered_kab}
+        layer_name = st.session_state.selected_kabupaten
+        if filtered_kab:
+            m.fit_bounds(get_bounds_from_geojson(selected_geojson))
+
+    elif st.session_state.selected_provinsi:
+        filtered_prov = [
+            f for f in prov_geojson["features"]
+            if f["properties"].get("PROVINSI") == st.session_state.selected_provinsi
+        ]
+        selected_geojson = {"type": "FeatureCollection", "features": filtered_prov}
+        layer_name = st.session_state.selected_provinsi
+        if filtered_prov:
+            m.fit_bounds(get_bounds_from_geojson(selected_geojson))
+
+    st.session_state.geojson_result = selected_geojson
+
+    if selected_geojson:
+        name = layer_name.replace(" ", "_").lower()
+
+        # Generate GeoHash
+        geohashes = geojson_to_geohash6(selected_geojson)
+        geohash_geojson = geohash6_to_geojson(geohashes)
+
+        # ✅ Tampilkan hanya GeoHash di peta
+        folium.GeoJson(
+            geohash_geojson,
+            name="GeoHash6",
+            style_function=lambda x: {"color": "#ff6600", "weight": 1, "fillOpacity": 0.3}
+        ).add_to(m)
+
+        # === Tombol download
+        col1, col2 = st.columns([5, 5])
+        with col1:
+            # Download geohash
+            geohash_str = json.dumps(geohash_geojson, ensure_ascii=False, indent=2)
+            st.download_button(
+                label="📥 Download GeoHash6",
+                data=geohash_str,
+                file_name=f"{name}_geohash6.geojson",
+                mime="application/geo+json"
+            )
+        with col2:
+            geohash_csv = geohash_to_csv(geohashes)
+            st.download_button(
+                label="📄 Download GeoHash6 CSV",
+                data=geohash_csv,
+                file_name=f"{name}_geohash6.csv",
+                mime="text/csv"
+            )
+
+
+# Tampilkan map
+st_data = st_folium(m, width=1200, height=600)
+
+# Footer
+st.markdown(
+    """
+    <hr style="margin-top: 2rem; margin-bottom: 1rem;">
+    <div style='text-align: center; color: grey; font-size: 0.9rem;'>
+        © 2025 ID Karta IoT Team
+    </div>
+    """,
+    unsafe_allow_html=True
+)
