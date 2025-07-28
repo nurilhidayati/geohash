@@ -7,6 +7,12 @@ from shapely.geometry import Polygon
 from io import BytesIO
 from collections import Counter
 
+if "result_gdf" not in st.session_state:
+    st.session_state["result_gdf"] = None
+if "download_ready" not in st.session_state:
+    st.session_state["download_ready"] = False
+
+
 def select_dense_geohash_from_uploaded_boundary(
     file, 
     tag_filters, 
